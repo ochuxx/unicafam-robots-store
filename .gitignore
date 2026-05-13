@@ -4,3 +4,5 @@ Docs/DocProyectoIni.pdf
 concept.py
 FrontEnd/components
 FrontEnd/pages
+**/*.drawio.bkp
+**/*.drawio.dtmp
