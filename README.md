@@ -84,7 +84,15 @@ El sistema permitirá:
 | direccion        | VARCHAR      | Dirección de residencia           |
 | fecha_registro   | DATE         | Fecha de registro                 |
 
-### Tabla 2: Proveedores
+### Tabla 2: Robots
+| Campo            | Tipo de dato | Descripción                       |
+|------------------|--------------|-----------------------------------|
+| id_robot         | INT          | Identificador único               |
+| nombre           | VARCHAR      | Nombre del robot                  |
+| descripcion      | VARCHAR      | Descripción del robot             |
+| tipo             | VARCHAR      | Nombre de la categoría            |
+
+### Tabla 3: Proveedores
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
 | id_proveedor     | INT          | Identificador único               |
@@ -93,20 +101,17 @@ El sistema permitirá:
 | telefono         | VARCHAR      | Número telefónico                 |
 | correo           | VARCHAR      | Correo empresarial                |
 
-### Tabla 3: Robots
+### Tabla 4: Inventarios
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
-| id_robot         | INT          | Identificador del robot           |
-| nombre_robot     | VARCHAR      | Nombre comercial                  |
-| descripcion      | TEXT         | Descripción del robot             |
+| id_inventario    | INT          | Identificador del robot           |
 | precio           | DECIMAL      | Precio de venta                   |
-| **categoría**    | VARCHAR      | Categoría del robot (Doméstico, Industrial, Educativo, Médico, etc.) |
 | stock            | INT          | Cantidad disponible               |
+| fecha_registro   | DATETIME     | Fecha de ingreso de robots        |
 | id_proveedor     | INT          | Proveedor asociado (FK)           |
+| id_robot         | INT          | Robot asociado (FK)               |
 
-> **Nota:** Se ha eliminado la tabla `Tipos_Robot` y el campo `id_tipo`. La categoría se almacena directamente como texto en la tabla `Robots`.
-
-### Tabla 4: Empleados
+### Tabla 5: Empleados
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
 | id_empleado      | INT          | Identificador                     |
@@ -115,29 +120,29 @@ El sistema permitirá:
 | correo           | VARCHAR      | Correo corporativo                |
 | telefono         | VARCHAR      | Número de contacto                |
 
-### Tabla 5: Ventas
+### Tabla 6: Ventas
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
 | id_venta         | INT          | Identificador de venta            |
-| fecha_venta      | DATE         | Fecha de compra                   |
+| fecha_venta      | DATETIME     | Fecha de compra                   |
 | total            | DECIMAL      | Valor total                       |
 | id_cliente       | INT          | Cliente asociado (FK)             |
 | id_empleado      | INT          | Empleado responsable (FK)         |
 
-### Tabla 6: Detalle_Venta
+### Tabla 7: Detalle_Venta
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
 | id_detalle       | INT          | Identificador                     |
 | id_venta         | INT          | Venta relacionada (FK)            |
-| id_robot         | INT          | Robot vendido (FK)                |
+| id_inventario    | INT          | Robot vend. desde inventario (FK) |
 | cantidad         | INT          | Cantidad comprada                 |
 | subtotal         | DECIMAL      | Valor parcial                     |
 
-### Tabla 7: Soporte_Tecnico
+### Tabla 8: Soporte_Tecnico
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
 | id_soporte       | INT          | Identificador                     |
-| fecha_reporte    | DATE         | Fecha del reporte                 |
+| fecha_reporte    | DATETIME     | Fecha del reporte                 |
 | problema         | TEXT         | Descripción de la falla           |
 | estado           | VARCHAR      | Estado del caso                   |
 | id_cliente       | INT          | Cliente asociado (FK)             |
@@ -155,7 +160,7 @@ El sistema permitirá:
 
 > Se ha eliminado la relación anterior `Tipos_Robot (1:N) Robots` porque la tabla `Tipos_Robot` ya no existe.
 
-## 📊 Modelo Relacional (Actualizado)
+## 📊 Modelo Relacional
 
 - Clientes **(1:N)** Ventas
 - Empleados **(1:N)** Ventas
@@ -164,6 +169,9 @@ El sistema permitirá:
 - Proveedores **(1:N)** Robots
 - Clientes **(1:N)** Soporte_Tecnico
 - Robots **(1:N)** Soporte_Tecnico
+
+### Diagrama del modelo relacional
+![imagen diagrama](./Docs/Entidad-Relacion.png)
 
 ## 📝 Formularios del Sistema
 
