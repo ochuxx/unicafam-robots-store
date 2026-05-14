@@ -2,7 +2,6 @@ Docs/Ajuste1.png
 Docs/Ajuste2.png
 Docs/DocProyectoIni.pdf
 concept.py
-FrontEnd/components
-FrontEnd/pages
+FrontEnd/components/table.py
 **/*.drawio.bkp
 **/*.drawio.dtmp

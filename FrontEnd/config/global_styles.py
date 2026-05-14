@@ -156,7 +156,6 @@ def apply_global_styles():
     </script>
     """, shared=True)
 
-
 def create_sidebar_layout(content_container, render_section):
     """
     Construye el sidebar y el toggle.
@@ -181,36 +180,55 @@ def create_sidebar_layout(content_container, render_section):
         </div>
         ''')
 
-        # Botones
         nav_buttons = {}  # Diccionario para manejar el estado activo
+
+        # Función auxiliar para actualizar el botón activo
+        def set_active_section(section_name):
+            # Quita la clase 'active' de todos los botones
+            for btn in nav_buttons.values():
+                btn.classes(remove='active')
+            # Añade la clase 'active' al botón correspondiente
+            if section_name in nav_buttons:
+                nav_buttons[section_name].classes(add='active')
+
+        # Wrapper que actualiza el activo y renderiza
+        def navigate_to(section_name):
+            set_active_section(section_name)
+            render_section(section_name)
+
         with ui.element('div').classes('sidebar-scroll'):
             # Principal
             ui.html('<div class="nav-section">Principal</div>')
-            btn_dash = ui.button('📊 Dashboard', on_click=lambda: render_section('dashboard')).props('flat').classes('nav-btn active')
+            btn_dash = ui.button('📊 Dashboard', on_click=lambda: navigate_to('dashboard')).props('flat').classes('nav-btn active')
             nav_buttons['dashboard'] = btn_dash
 
             # Datos maestros
             ui.html('<div class="nav-section">Datos maestros</div>')
-            btn_clientes = ui.button('👥 Clientes', on_click=lambda: render_section('clientes')).props('flat').classes('nav-btn')
+            btn_clientes = ui.button('👥 Clientes', on_click=lambda: navigate_to('clientes')).props('flat').classes('nav-btn')
             nav_buttons['clientes'] = btn_clientes
-            btn_robots = ui.button('🤖 Robots', on_click=lambda: render_section('robots')).props('flat').classes('nav-btn')
+            btn_robots = ui.button('🤖 Robots', on_click=lambda: navigate_to('robots')).props('flat').classes('nav-btn')
             nav_buttons['robots'] = btn_robots
-            btn_proveedores = ui.button('🏭 Proveedores', on_click=lambda: render_section('proveedores')).props('flat').classes('nav-btn')
+            btn_proveedores = ui.button('🏭 Proveedores', on_click=lambda: navigate_to('proveedores')).props('flat').classes('nav-btn')
             nav_buttons['proveedores'] = btn_proveedores
-            btn_empleados = ui.button('👔 Empleados', on_click=lambda: render_section('empleados')).props('flat').classes('nav-btn')
+            btn_empleados = ui.button('👔 Empleados', on_click=lambda: navigate_to('empleados')).props('flat').classes('nav-btn')
             nav_buttons['empleados'] = btn_empleados
 
             # Operaciones
             ui.html('<div class="nav-section">Operaciones</div>')
-            btn_ventas = ui.button('💰 Ventas', on_click=lambda: render_section('ventas')).props('flat').classes('nav-btn')
+            btn_ventas = ui.button('💰 Ventas', on_click=lambda: navigate_to('ventas')).props('flat').classes('nav-btn')
             nav_buttons['ventas'] = btn_ventas
-            btn_soporte = ui.button('🔧 Soporte Técnico', on_click=lambda: render_section('soporte')).props('flat').classes('nav-btn')
+            btn_soporte = ui.button('🔧 Soporte Técnico', on_click=lambda: navigate_to('soporte')).props('flat').classes('nav-btn')
             nav_buttons['soporte'] = btn_soporte
 
             # Análisis
             ui.html('<div class="nav-section">Análisis</div>')
-            btn_consultas = ui.button('🔍 Consultas', on_click=lambda: render_section('consultas')).props('flat').classes('nav-btn')
+            btn_consultas = ui.button('🔍 Consultas', on_click=lambda: navigate_to('consultas')).props('flat').classes('nav-btn')
             nav_buttons['consultas'] = btn_consultas
+
+            # Sección de pruebas
+            ui.html('<div class="nav-section">🧪 Pruebas</div>')
+            btn_prueba = ui.button('🧪 Área de Pruebas', on_click=lambda: navigate_to('prueba')).props('flat').classes('nav-btn')
+            nav_buttons['prueba'] = btn_prueba
 
         # Footer
         ui.html('''
@@ -220,6 +238,4 @@ def create_sidebar_layout(content_container, render_section):
         </div>
         ''')
 
-        # Exponer el diccionario para actualizar el estado activo desde fuera
-        # (se puede usar más adelante si se necesita, pero el render_section ya lo maneja)
-    return nav_buttons  # opcional, por si quieres manipular los botones desde main.py
+    return nav_buttons
