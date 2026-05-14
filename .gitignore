@@ -5,3 +5,4 @@ concept.py
 FrontEnd/components/table.py
 **/*.drawio.bkp
 **/*.drawio.dtmp
+**/__pycache__/
