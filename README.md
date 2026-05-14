@@ -1,8 +1,8 @@
 # 🚀 SmartBot Solutions - Sistema de Gestión para Venta y Soporte de Robots
 
-[![Estado](https://img.shields.io/badge/Estado-Diseño-blue)]()
-[![Base de Datos](https://img.shields.io/badge/Base%20de%20Datos-Relacional-green)]()
-[![Herramienta](https://img.shields.io/badge/Herramienta-Google%20Sheets-orange)]()
+![Estado](https://img.shields.io/badge/Estado-Diseño-blue)  
+![Base de Datos](https://img.shields.io/badge/Base%20de%20Datos-Relacional-green)  
+![Herramienta](https://img.shields.io/badge/Herramienta-Google%20Sheets-orange)
 
 ## 📌 Introducción
 
@@ -48,8 +48,6 @@ El sistema permitirá:
 - Registrar empleados.
 - Controlar inventario.
 - Registrar solicitudes de soporte técnico.
-
-> **Nota:** La implementación será desarrollada utilizando **Google Sheets** como base de almacenamiento y formularios digitales para el ingreso de datos.
 
 ## ⚙️ Requerimientos del Sistema
 
@@ -104,7 +102,7 @@ El sistema permitirá:
 ### Tabla 4: Inventarios
 | Campo            | Tipo de dato | Descripción                       |
 |------------------|--------------|-----------------------------------|
-| id_inventario    | INT          | Identificador del robot           |
+| id_inventario    | INT          | Identificador del inventario      |
 | precio           | DECIMAL      | Precio de venta                   |
 | stock            | INT          | Cantidad disponible               |
 | fecha_registro   | DATETIME     | Fecha de ingreso de robots        |
@@ -134,7 +132,7 @@ El sistema permitirá:
 |------------------|--------------|-----------------------------------|
 | id_detalle       | INT          | Identificador                     |
 | id_venta         | INT          | Venta relacionada (FK)            |
-| id_inventario    | INT          | Robot vend. desde inventario (FK) |
+| id_inventario    | INT          | Robot vendido desde inventario (FK) |
 | cantidad         | INT          | Cantidad comprada                 |
 | subtotal         | DECIMAL      | Valor parcial                     |
 
@@ -148,7 +146,7 @@ El sistema permitirá:
 | id_cliente       | INT          | Cliente asociado (FK)             |
 | id_robot         | INT          | Robot relacionado (FK)            |
 
-## 🔗 Relaciones Entre Tablas (Actualizadas)
+## 🔗 Relaciones Entre Tablas
 
 - Un **cliente** puede realizar muchas **ventas** (1:N).
 - Un **empleado** puede registrar muchas **ventas** (1:N).
@@ -157,8 +155,6 @@ El sistema permitirá:
 - Un **robot** puede aparecer en múltiples **ventas** (N:M a través de Detalle_Venta).
 - Un **cliente** puede generar múltiples **solicitudes de soporte** (1:N).
 - Un **robot** puede tener varios **registros de soporte técnico** (1:N).
-
-> Se ha eliminado la relación anterior `Tipos_Robot (1:N) Robots` porque la tabla `Tipos_Robot` ya no existe.
 
 ## 📊 Modelo Relacional
 
@@ -183,7 +179,7 @@ El sistema permitirá:
 
 ### Robots
 - Nombre del robot
-- **Categoría** (antes Tipo)
+- Categoría
 - Precio
 - Stock
 - Proveedor
