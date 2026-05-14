@@ -97,7 +97,8 @@ class SmartForm:
                     num_value = None if value in (None, '') else value
                     field = ui.number(value=num_value, placeholder=placeholder, on_change=on_change, **kwargs)
                 elif field_type == "date":
-                    field = ui.date(value=value, on_change=on_change, **kwargs)
+                    field = ui.input(value=value, on_change=on_change, **kwargs)
+                    field.props('type=date')
                 elif field_type == "email":
                     field = ui.input(value=value, placeholder=placeholder, on_change=on_change).props('type=email')
                 elif field_type == "password":

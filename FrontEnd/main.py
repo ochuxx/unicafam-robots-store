@@ -1,55 +1,62 @@
 # FrontEnd/main.py
+import sys
+from pathlib import Path
 from nicegui import ui
 from config.global_styles import apply_global_styles, create_sidebar_layout
-from pages.prueba import prueba_page  # Importa la página de pruebas
+from importlib import import_module
+import logging
 
+# Agregar el directorio actual al path para poder importar módulos locales
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
 
-# ─────────────────────────────────────────────
-#  FUNCIÓN DE RENDERIZADO GENÉRICO ("En construcción")
-# ─────────────────────────────────────────────
-def render_generic(content_container, section_name: str):
-    """Renderiza un mensaje 'En construcción' para cualquier sección."""
-    content_container.clear()
-    with content_container:
-        ui.html(f'<div class="page-header"><p class="page-title">{section_name.capitalize()}</p><p class="page-subtitle">Contenido de la sección</p></div>')
-        with ui.card().classes('bg-card border border-teal-accent p-8 rounded-lg'):
-            ui.html('<div style="font-size:3rem; text-align:center; margin-bottom:16px;">🚧</div>')
-            ui.label('En construcción').classes('text-3xl font-bold text-teal-light text-center')
-            ui.label('Esta sección estará disponible próximamente.').classes('text-muted text-center mt-2')
+logging.basicConfig(level=logging.INFO)
 
+# Mapeo de nombre de sección a nombre del archivo (sin extensión)
+SECCIONES = {
+    'dashboard': '00_dashboard',
+    'clientes': '01_clientes',
+    'robots': '02_robots',
+    'proveedores': '03_proveedores',
+    'empleados': '04_empleados',
+    'ventas': '05_ventas',
+    'soporte': '06_soporte',
+    'consultas': '07_consultas',
+    'prueba': '99_prueba',
+}
 
-# ─────────────────────────────────────────────
-#  APLICACIÓN PRINCIPAL
-# ─────────────────────────────────────────────
+def cargar_pagina(section_name: str):
+    """Retorna la función 'page' del módulo correspondiente o None si no existe."""
+    module_name = SECCIONES.get(section_name)
+    if not module_name:
+        logging.warning(f"Sección no mapeada: {section_name}")
+        return None
+    try:
+        # Importar desde el paquete 'pages' (mismo nivel que este archivo)
+        modulo = import_module(f"pages.{module_name}")
+        return getattr(modulo, 'page', None)
+    except ImportError as e:
+        logging.error(f"Error importando {module_name}: {e}")
+        return None
+
 @ui.page("/")
 def main():
-    # Aplicar estilos y JavaScript globales
     apply_global_styles()
-
-    # Contenedor de contenido
     content_container = ui.column().classes("main-content")
-
-    # Función que el sidebar llamará al hacer clic en un botón
+    
     def render_section(section_name: str):
-        # Si es la sección de pruebas, mostramos la página real
-        if section_name == 'prueba':
-            content_container.clear()
-            with content_container:
-                prueba_page()
+        content_container.clear()
+        pagina_func = cargar_pagina(section_name)
+        if pagina_func:
+            pagina_func(content_container)
         else:
-            # Para el resto, mensaje genérico
-            render_generic(content_container, section_name)
-
-    # Crear el sidebar (y el toggle) - ya incluye el botón de 'prueba'
+            with content_container:
+                ui.label(f"Sección '{section_name}' no encontrada").classes("text-red")
+    
     create_sidebar_layout(content_container, render_section)
-
-    # Renderizar la sección inicial (Dashboard)
     render_section('dashboard')
 
-
-# ─────────────────────────────────────────────
-#  EJECUCIÓN
-# ─────────────────────────────────────────────
 ui.run(
     title="SmartBot Solutions — Sistema de Gestión",
     dark=True,
