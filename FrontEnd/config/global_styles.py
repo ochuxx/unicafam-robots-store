@@ -212,6 +212,8 @@ def create_sidebar_layout(content_container, render_section):
             nav_buttons['proveedores'] = btn_proveedores
             btn_empleados = ui.button('👔 Empleados', on_click=lambda: navigate_to('empleados')).props('flat').classes('nav-btn')
             nav_buttons['empleados'] = btn_empleados
+            btn_inventario = ui.button('📦 Inventario', on_click=lambda: navigate_to('inventario')).props('flat').classes('nav-btn')
+            nav_buttons['inventario'] = btn_inventario
 
             # Operaciones
             ui.html('<div class="nav-section">Operaciones</div>')

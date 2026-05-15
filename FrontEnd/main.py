@@ -23,6 +23,7 @@ SECCIONES = {
     'ventas': '05_ventas',
     'soporte': '06_soporte',
     'consultas': '07_consultas',
+    'inventario': '08_inventario',
     'prueba': '99_prueba',
 }
 
