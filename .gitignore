@@ -1,8 +1,11 @@
 Docs/Ajuste1.png
 Docs/Ajuste2.png
 Docs/DocProyectoIni.pdf
+
+# Concepto inicial visual
 concept.py
-FrontEnd/components/table.py
+
+# Ignorar archivos de respaldo y caché
 **/*.drawio.bkp
 **/*.drawio.dtmp
 **/__pycache__/
