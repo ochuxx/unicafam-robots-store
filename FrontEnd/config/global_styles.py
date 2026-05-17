@@ -55,19 +55,23 @@ def apply_global_styles():
       .sidebar-scroll::-webkit-scrollbar { width: 4px; }
       .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--teal-accent); }
 
+      /* Logo - más grande y visible */
       .sidebar-logo {
-        padding: 20px 20px 12px;
+        padding: 20px 16px;
         border-bottom: 1px solid var(--border);
         text-align: center;
         flex-shrink: 0;
       }
-      .sidebar-logo .brand {
-        font-size: 1.2rem; font-weight: 800; color: var(--teal-light);
-        text-transform: uppercase;
+      .sidebar-logo img {
+        width: 100%;
+        max-width: 200px;
+        height: auto;
+        max-height: 100px;
+        object-fit: contain;
+        display: inline-block;
+        margin: 0 auto;
       }
-      .sidebar-logo .sub {
-        font-size: 0.65rem; color: var(--text-muted); letter-spacing: 3px;
-      }
+
       .nav-section {
         padding: 16px 20px 4px;
         font-size: 0.6rem; color: var(--text-muted);
@@ -171,14 +175,9 @@ def create_sidebar_layout(content_container, render_section):
 
     # Sidebar
     with ui.element('div').classes('sidebar-wrapper'):
-        # Logo
-        ui.html('''
-        <div class="sidebar-logo">
-            <div style="font-size:2rem;margin-bottom:4px">🤖</div>
-            <div class="brand">SmartBot</div>
-            <div class="sub">Solutions</div>
-        </div>
-        ''')
+        # Logo - ahora más grande (max-width 200px, width 100%)
+        with ui.element('div').classes('sidebar-logo'):
+            ui.image('static/logo.png').style('width: 100%; max-width: 200px; height: auto; max-height: 100px; object-fit: contain; display: block; margin: 0 auto;')
 
         nav_buttons = {}  # Diccionario para manejar el estado activo
 
