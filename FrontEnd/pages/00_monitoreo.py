@@ -1,4 +1,4 @@
-# FrontEnd/pages/00_dashboard.py
+# FrontEnd/pages/00_monitoreo.py
 from nicegui import ui
 from mock_data import get_all_mock_data
 
@@ -20,9 +20,15 @@ def format_number_abbreviated(num: float) -> str:
 
 def page(container: ui.column):
     """
-    Renderiza el Dashboard General en el contenedor proporcionado.
+    Renderiza el Monitoreo General en el contenedor proporcionado.
     """
     with container:
+        # ---- TÍTULO Y SUBTÍTULO (siguiendo el estilo de clientes.py) ----
+        ui.label("Monitoreo en Vivo").classes("page-title")
+        ui.label("Alertas y última actividad del sistema").classes("page-subtitle").style(
+            "margin-bottom: 24px;"
+        )
+
         # ---- Contenedor para tarjetas superiores ----
         cards_container = ui.row().classes('w-full gap-4 flex-wrap items-stretch')
 
@@ -45,21 +51,17 @@ def page(container: ui.column):
             total_stock = sum(item["stock"] for item in inventario)
             soportes_abiertos = len([s for s in soporte if s["estado"] == "Pendiente"])
 
-            # 3. TARJETAS SUPERIORES (con colores mejorados - CORREGIDO)
+            # 3. TARJETAS SUPERIORES
             cards_container.clear()
             with cards_container:
                 def crear_tarjeta(titulo, valor, icono, color):
                     with ui.card().classes(f'flex-1 min-w-[200px] bg-[#0a1e28] border-l-[6px] border-[{color}] p-4'):
-                        # Contenedor interno con el fondo sutil (aplicamos estilo en línea)
                         with ui.column().classes('h-full justify-center rounded-r-lg'):
-                            # Icono y título
                             with ui.row().classes('items-center gap-2 w-full'):
                                 ui.icon(icono, size='1.5rem', color=color)
                                 ui.label(titulo).classes('text-sm font-bold text-[#d0f0f5] uppercase tracking-wider')
-                            # Número grande
                             ui.label(valor).classes('text-3xl font-bold text-[#ffffff] mt-3 w-full')
 
-                # Colores mejorados (los mismos que te gustaron)
                 crear_tarjeta('VENTAS TOTALES', f'${format_number_abbreviated(total_ventas)}', 'attach_money', '#2dd4bf')
                 crear_tarjeta('CLIENTES', f'{total_clientes:,}', 'people', '#67e8f9')
                 crear_tarjeta('UDS. EN STOCK', f'{format_number_abbreviated(total_stock)}', 'inventory_2', '#2dd4bf')

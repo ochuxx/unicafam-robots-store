@@ -15,15 +15,15 @@ logging.basicConfig(level=logging.INFO)
 
 # Mapeo de nombre de sección a nombre del archivo (sin extensión)
 SECCIONES = {
-    'dashboard': '00_dashboard',
+    'monitoreo': '00_monitoreo',
     'clientes': '01_clientes',
     'robots': '02_robots',
     'proveedores': '03_proveedores',
     'empleados': '04_empleados',
-    'ventas': '05_ventas',
-    'soporte': '06_soporte',
-    'consultas': '07_consultas',
-    'inventario': '08_inventario',
+    'inventario': '05_inventario',
+    'ventas': '06_ventas',
+    'soporte': '07_soporte',
+    'analitica': '08_analitica',
 }
 
 def cargar_pagina(section_name: str):
@@ -55,7 +55,7 @@ def main():
                 ui.label(f"Sección '{section_name}' no encontrada").classes("text-red")
     
     create_sidebar_layout(content_container, render_section)
-    render_section('dashboard')
+    render_section('monitoreo')
 
 ui.run(
     title="SmartBot Solutions — Sistema de Gestión",

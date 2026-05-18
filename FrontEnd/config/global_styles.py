@@ -198,8 +198,8 @@ def create_sidebar_layout(content_container, render_section):
         with ui.element('div').classes('sidebar-scroll'):
             # Principal
             ui.html('<div class="nav-section">Principal</div>')
-            btn_dash = ui.button('📊 Dashboard', on_click=lambda: navigate_to('dashboard')).props('flat').classes('nav-btn active')
-            nav_buttons['dashboard'] = btn_dash
+            btn_dash = ui.button('📊 monitoreo', on_click=lambda: navigate_to('monitoreo')).props('flat').classes('nav-btn active')
+            nav_buttons['monitoreo'] = btn_dash
 
             # Datos maestros
             ui.html('<div class="nav-section">Datos maestros</div>')
@@ -223,8 +223,8 @@ def create_sidebar_layout(content_container, render_section):
 
             # Análisis
             ui.html('<div class="nav-section">Análisis</div>')
-            btn_consultas = ui.button('🔍 Consultas', on_click=lambda: navigate_to('consultas')).props('flat').classes('nav-btn')
-            nav_buttons['consultas'] = btn_consultas
+            btn_analitica = ui.button('🔍 analitica', on_click=lambda: navigate_to('analitica')).props('flat').classes('nav-btn')
+            nav_buttons['analitica'] = btn_analitica
 
         # Footer
         ui.html('''
