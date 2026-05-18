@@ -58,7 +58,7 @@ def eliminar_robot_en_backend(id_robot: str) -> bool:
 # Página principal
 # ──────────────────────────────────────────────────────────────────────
 
-TIPOS_ROBOT = ["Doméstico", "Industrial", "Educativo", "Médico", "Comercial", "Seguridad"]
+TIPOS_ROBOT = ["Doméstico", "Industrial", "Educativo", "Médico", "Comercial", "Seguridad", "Hogar"]
 
 
 def page(content_container):
