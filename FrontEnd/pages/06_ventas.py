@@ -18,6 +18,8 @@ from datetime import datetime
 # Índices para búsqueda rápida
 _CLIENTES_POR_NIT = {c["nit"]: c for c in clientes_mock}
 _EMPLEADOS_POR_ID = {e["id"]:  e for e in empleados_mock}
+_INVENTARIO_POR_ID = {i["id"]: i for i in inventario_mock}
+_ROBOTS_POR_ID = {r["id"]: r for r in robots_mock}
 
 # Opciones para selects del formulario (todos los registros con búsqueda)
 OPCIONES_CLIENTE  = [f"{c['nit']} - {c['nombre']}"  for c in clientes_mock]
@@ -29,13 +31,13 @@ _vistos = set()
 for inv in inventario_mock:
     rid = inv["id_robot"]
     if rid not in _vistos:
-        robot = next((r for r in robots_mock if r["id"] == rid), None)
+        robot = _ROBOTS_POR_ID.get(rid)
         if robot:
             _CATALOGO_ROBOTS.append({
-                "id_robot":      robot["id"],          # str: "SER-001"
+                "id_robot":      robot["id"],
                 "nombre":        robot["nombre"],
                 "precio":        inv["precio"],
-                "id_inventario": inv["id"],            # código de barras
+                "id_inventario": inv["id"],
             })
             _vistos.add(rid)
 
@@ -78,25 +80,92 @@ def _construir_filas() -> list:
 _contador_detalle  = 0
 _filas_detalle: dict = {}
 
-
 def _generar_id_venta() -> int:
-    """Calcula el próximo ID basado en el máximo ID actual en ventas_mock."""
     if not ventas_mock:
         return 1
     return max(v["id"] for v in ventas_mock) + 1
 
-
 def _generar_id_detalle_persistente() -> int:
-    """Calcula el próximo ID para detalle_ventas_mock."""
     if not detalle_ventas_mock:
         return 1
     return max(d["id"] for d in detalle_ventas_mock) + 1
-
 
 def _generar_id_detalle_temporal() -> int:
     global _contador_detalle
     _contador_detalle += 1
     return _contador_detalle
+
+# ──────────────────────────────────────────────────────────────────────
+# Diálogo de detalles de venta (UI mejorada)
+# ──────────────────────────────────────────────────────────────────────
+def _dialogo_detalles_venta(fila: dict):
+    venta_id = fila["id"]
+    venta = next((v for v in ventas_mock if v["id"] == venta_id), None)
+    if not venta:
+        ui.notify("Venta no encontrada", type="error")
+        return
+
+    detalles = [d for d in detalle_ventas_mock if d["id_venta"] == venta_id]
+
+    cliente_nombre = fila["cliente"]
+    empleado_nombre = fila["empleado"]
+
+    with ui.dialog() as dialog, ui.card().style("min-width: 650px; max-width: 900px; padding: 20px;"):
+        ui.label(f"Detalles de la venta #{venta_id}").classes("text-h5 text-primary")
+        ui.label(f"Registrada el {venta['fecha_venta']}").classes("text-caption").style("margin-bottom: 20px;")
+
+        # Grid de 2 columnas para información general
+        with ui.grid(columns=2).classes("gap-4").style("margin-bottom: 24px;"):
+            ui.label("Cliente:").classes("text-weight-bold")
+            ui.label(cliente_nombre)
+            ui.label("Empleado responsable:").classes("text-weight-bold")
+            ui.label(empleado_nombre)
+            ui.label("Total:").classes("text-weight-bold")
+            ui.label(fila["total"]).classes("text-h6 text-primary")
+
+        ui.separator()
+        ui.label("Productos vendidos").classes("text-subtitle1 text-weight-bold").style("margin: 16px 0 12px 0;")
+
+        if detalles:
+            productos = []
+            for det in detalles:
+                inv = _INVENTARIO_POR_ID.get(det["id_inventario"])
+                if inv:
+                    robot = _ROBOTS_POR_ID.get(inv["id_robot"])
+                    nombre_robot = robot["nombre"] if robot else "Desconocido"
+                    productos.append({
+                        "producto": nombre_robot,
+                        "cantidad": det["cantidad"],
+                        "precio_unitario": f"${inv['precio']:,.0f}",
+                        "subtotal": f"${det['subtotal']:,.0f}",
+                    })
+
+            columns = [
+                {"name": "producto", "label": "Producto", "field": "producto"},
+                {"name": "cantidad", "label": "Cantidad", "field": "cantidad", "align": "right"},
+                {"name": "precio", "label": "Precio unit.", "field": "precio_unitario", "align": "right"},
+                {"name": "subtotal", "label": "Subtotal", "field": "subtotal", "align": "right"},
+            ]
+
+            # Paginación solo si hay más de 5 productos
+            if len(productos) > 5:
+                pagination = {"rowsPerPage": 5}
+            else:
+                pagination = None  # Sin paginador
+
+            table = ui.table(
+                columns=columns,
+                rows=productos,
+                row_key="producto",
+                pagination=pagination
+            ).classes("w-full")
+        else:
+            ui.label("No hay productos registrados para esta venta.").style("color: gray; margin: 8px 0;")
+
+        with ui.row().classes("justify-end mt-4"):
+            ui.button("Cerrar", on_click=dialog.close).props("flat")
+
+    dialog.open()
 
 # ──────────────────────────────────────────────────────────────────────
 # Página principal
@@ -198,7 +267,6 @@ def page(content_container):
                     ui.button("🗑️", on_click=lambda _f=fila, _i=nuevo_id: _eliminar_fila(_f, _i)) \
                       .props("flat").style("color: var(--text-muted);")
 
-                    # Inicializar con el primer robot si existe
                     precio_inicial = 0
                     id_inventario_inicial = None
                     if OPCIONES_ROBOT:
@@ -233,7 +301,6 @@ def page(content_container):
             )
             nuevo_id_venta = _generar_id_venta()
 
-            # Persistir cabecera en ventas_mock
             nit_cliente = form.cliente.value.split(" - ")[0].strip()
             id_empleado = int(form.empleado.value.split(" - ")[0].strip())
             ventas_mock.append({
@@ -244,7 +311,6 @@ def page(content_container):
                 "id_empleado": id_empleado,
             })
 
-            # Persistir detalles en detalle_ventas_mock
             for det in _filas_detalle.values():
                 id_inventario = det["id_inventario"]
                 cantidad = det["cantidad"].value
@@ -264,7 +330,6 @@ def page(content_container):
                 type="positive", position="top",
             )
 
-            # Limpiar formulario y detalles temporales
             form.fecha.value    = datetime.now().strftime("%Y-%m-%d")
             form.cliente.value  = None
             form.empleado.value = None
@@ -288,6 +353,7 @@ def page(content_container):
         ui.label("Listado de ventas").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 12px;"
         )
+        # (Label explicativo eliminado)
 
         columnas_ventas = [
             {"label": "ID",          "field": "id",          "width": "60px",  "filter_mode": "exact"},
@@ -297,12 +363,18 @@ def page(content_container):
             {"label": "Total",       "field": "total",       "width": "120px", "filter_mode": "contains", "align": "right"},
         ]
 
+        acciones = {
+            "detalles": {"icon": "visibility", "color": "teal", "tooltip": "Ver detalles de la venta"},
+        }
+
         tabla_ventas = SmartTable(
             columns=columnas_ventas,
             data=_construir_filas(),
             rows_per_page=10,
             show_pagination=True,
-            show_actions=False,      # Las ventas no se editan ni eliminan
+            show_actions=True,
+            action_buttons=acciones,
+            on_action=lambda accion, fila: _dialogo_detalles_venta(fila) if accion == "detalles" else None,
             row_key="id",
             max_height="500px",
             filterable=True,
