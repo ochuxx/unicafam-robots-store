@@ -7,17 +7,9 @@ class SmartTable:
     """
     Tabla inteligente para NiceGUI/Quasar.
 
-    REGLAS CLAVE:
-    - Quasar recibe SIEMPRE todos los datos filtrados (nunca un slice).
-    - La paginación la maneja Quasar con el objeto `pagination`.
-    - Los botones de acción usan $parent.$emit desde el slot, que sube
-      al q-table (el elemento que NiceGUI monitorea con table.on()).
-
-    ÁRBOL VUE (por qué $parent.$emit):
-        q-table  ← NiceGUI registra listeners aquí con table.on()
-          └── slot scope component  ← contexto interno de Quasar
-                └── q-td
-                      └── q-btn  @click → $parent.$emit(...)  ✅
+    La paginación la maneja Quasar con el objeto `pagination`.
+    Los botones de acción usan $parent.$emit desde el slot para que los eventos
+    sean capturados por el q-table (elemento que NiceGUI monitorea).
     """
 
     def __init__(
@@ -40,6 +32,29 @@ class SmartTable:
         container_class: str = "",
         table_id: str = None,
     ):
+        """
+        Inicializa la tabla inteligente.
+
+        :param columns: Lista de diccionarios con la definición de columnas.
+                        Cada columna puede tener: 'field', 'label', 'sortable',
+                        'filterable', 'filter_mode', 'align', 'width'.
+        :param data: Datos iniciales (lista de diccionarios).
+        :param title: Título de la tarjeta.
+        :param subtitle: Subtítulo.
+        :param rows_per_page: Filas por página (0 para deshabilitar paginación).
+        :param show_pagination: Muestra controles de paginación.
+        :param show_actions: Muestra columna de acciones.
+        :param action_buttons: Diccionario {nombre_accion: {icon, color, tooltip}}.
+        :param on_row_click: Callback al hacer clic en una fila (recibe la fila).
+        :param on_action: Callback al pulsar un botón de acción (recibe nombre_accion, fila).
+        :param max_height: Altura máxima del contenedor (scroll).
+        :param striped: Franjas alternadas.
+        :param dense: Modo compacto.
+        :param filterable: Muestra filtros por columna.
+        :param row_key: Clave única para identificar filas.
+        :param container_class: Clases CSS adicionales para la tarjeta.
+        :param table_id: Identificador único para la tabla (se genera automáticamente si no se da).
+        """
         self.columns = columns
         self.original_data = data or []
         self.rows_per_page = rows_per_page
@@ -80,6 +95,12 @@ class SmartTable:
     # ──────────────────────────────────────────────────────────────────
 
     def build(self) -> ui.card:
+        """
+        Construye y retorna la tarjeta que contiene la tabla y sus controles.
+        Debe llamarse después de la inicialización.
+
+        :return: Componente ui.card con la tabla.
+        """
         with ui.card() as self.container:
             self.container.classes(f"w-full {self.container_class}").style(
                 "background: var(--bg-card); "
@@ -150,32 +171,20 @@ class SmartTable:
                 if self.on_row_click:
                     self.table.on("rowClick", lambda e: self._handle_row_click(e))
 
-                # Slot de acciones con $parent.$emit
+                # Slot de acciones
                 if self.show_actions and self.action_buttons:
                     self._build_action_slot()
 
         return self.container
 
     # ──────────────────────────────────────────────────────────────────
-    # Slot de acciones — fix: $parent.$emit sube al q-table
+    # Slot de acciones
     # ──────────────────────────────────────────────────────────────────
 
     def _build_action_slot(self):
         """
         Construye el slot body-cell-actions con botones q-btn.
-
-        FIX CRÍTICO: usar $parent.$emit en lugar de $emit.
-
-        Dentro del slot, el contexto Vue es un componente interno de
-        Quasar (un scope slot component), NO el q-table en sí mismo.
-        NiceGUI registra los listeners en el q-table, que es el
-        $parent de ese componente interno. Por eso:
-
-            $emit(...)          → evento en el hijo  → NiceGUI NO lo ve  ❌
-            $parent.$emit(...)  → evento en q-table  → NiceGUI SÍ lo ve  ✅
-
-        @click.stop previene que el clic burbujee y dispare rowClick
-        simultáneamente con la acción del botón.
+        Los eventos se emiten hacia el padre (q-table) mediante $parent.$emit.
         """
         buttons_html = ""
         for action_name, config in self.action_buttons.items():
@@ -204,21 +213,15 @@ class SmartTable:
             </q-td>
         """)
 
-        # El listener va en self.table (el q-table = $parent del slot)
         self.table.on("table-action", self._handle_table_action)
 
     def _handle_table_action(self, event):
-        """
-        Recibe el evento emitido por $parent.$emit desde el slot.
-        event.args es el diccionario con action, key y table_id.
-        """
         datos = event.args
         action = datos.get("action")
         key    = datos.get("key")
         self._dispatch_action(action, key)
 
     def _dispatch_action(self, action_name: str, row_key_value):
-        """Busca la fila por clave y llama a on_action."""
         if not self.on_action:
             return
         fila = next(
@@ -314,6 +317,6 @@ class SmartTable:
         self._push_to_table()
 
     def set_data(self, new_data: List[Dict]):
-        """Reemplaza el dataset completo y refresca la tabla."""
+        """Reemplaza el conjunto de datos completo y refresca la tabla."""
         self.original_data = new_data
         self.refresh()

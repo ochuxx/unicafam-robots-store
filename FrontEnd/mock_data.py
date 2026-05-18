@@ -1,37 +1,20 @@
-# mock_data.py - 1000 registros por tabla con duplicados en clientes
+# mock_data.py - 1000 registros por tabla (todos los NIT de clientes son únicos)
 from datetime import datetime, timedelta
 import random
 
 # =============================================
-# 1. CLIENTES (NIT único pero con duplicados para pruebas)
+# 1. CLIENTES (NIT único)
 # =============================================
 clientes_mock = []
-
-# NITs duplicados (5 NITs base, cada uno repetido varias veces)
-nits_base_duplicados = [
-    "900000001-1", "900000002-2", "900000003-3", 
-    "900000004-4", "900000005-5"
-]
-nits_duplicados = []
-for nit in nits_base_duplicados:
-    # Repetir cada NIT entre 10 y 20 veces para tener suficientes duplicados
-    repeticiones = random.randint(10, 20)
-    nits_duplicados.extend([nit] * repeticiones)
-
-# Completar hasta 1000 con NITs únicos
-nits_unicos = [f"900{i:06d}-{i%10}" for i in range(6, 1001 - len(nits_duplicados) + 6)]
-
-todos_nits = nits_duplicados + nits_unicos
-random.shuffle(todos_nits)
-
-for idx, nit in enumerate(todos_nits, start=1):
+for i in range(1, 1001):
+    nit = f"900{i:06d}-{i%10}"
     clientes_mock.append({
         "nit": nit,
-        "nombre": f"Cliente {idx}",
-        "correo": f"cliente{idx}@mail.com",
+        "nombre": f"Cliente {i}",
+        "correo": f"cliente{i}@mail.com",
         "telefono": f"300{random.randint(1000000, 9999999)}",
-        "direccion": f"Calle {idx} # {idx%20}-{idx%10}, Bogotá",
-        "fecha_registro": (datetime(2024, 1, 1) + timedelta(days=idx)).strftime("%Y-%m-%d")
+        "direccion": f"Calle {i} # {i%20}-{i%10}, Bogotá",
+        "fecha_registro": (datetime(2024, 1, 1) + timedelta(days=i)).strftime("%Y-%m-%d")
     })
 
 # =============================================
@@ -54,7 +37,7 @@ robots_mock = []
 tipos_robot = ["Hogar", "Industrial", "Educativo", "Médico", "Seguridad"]
 for i in range(1, 1001):
     robots_mock.append({
-        "id": f"SER-{i:04d}",  # SER-0001 ... SER-1000
+        "id": f"SER-{i:04d}",
         "nombre": f"Robot Modelo {i}",
         "descripcion": f"Robot versión {i}.0 para {random.choice(tipos_robot)}",
         "tipo": random.choice(tipos_robot)
@@ -79,7 +62,7 @@ for i in range(1, 1001):
 # =============================================
 inventario_mock = []
 for i in range(1, 1001):
-    codigo_barras = f"1234567890{i:04d}"  # 12345678900001 ... 12345678901000
+    codigo_barras = f"1234567890{i:04d}"
     inventario_mock.append({
         "id": codigo_barras,
         "precio": random.randint(500000, 20000000),
@@ -128,7 +111,7 @@ for venta in ventas_mock:
     venta["total"] = total_venta
 
 # =============================================
-# 8. SOPORTE_TECNICO (ID autoincremental) - CON FECHA_ACTUALIZACION
+# 8. SOPORTE_TECNICO (ID autoincremental)
 # =============================================
 soporte_mock = []
 estados = ["Pendiente", "En proceso", "Resuelto", "Cancelado"]
@@ -139,7 +122,7 @@ for i in range(1, 1001):
     soporte_mock.append({
         "id": i,
         "fecha_reporte": fecha_reporte,
-        "fecha_actualizacion": fecha_reporte,  # <--- AÑADIDO para todos los tickets
+        "fecha_actualizacion": fecha_reporte,
         "problema": f"Falla reportada: {random.choice(['No enciende', 'Error de conexión', 'Batería baja', 'Sobrecalentamiento', 'Sensor dañado'])}",
         "estado": random.choice(estados),
         "id_cliente": cliente["nit"],

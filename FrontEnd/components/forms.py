@@ -3,6 +3,13 @@ from nicegui import ui
 from typing import Callable, Optional, List, Any
 
 class SmartForm:
+    """
+    Formulario dinámico con diseño en cuadrícula (CSS Grid) y botones opcionales.
+
+    Permite agregar campos de distintos tipos (input, textarea, select, etc.)
+    y obtener sus valores. El contenedor principal es una tarjeta de NiceGUI.
+    """
+
     def __init__(
         self,
         title: str = "",
@@ -16,6 +23,20 @@ class SmartForm:
         submit_text: str = "Guardar",
         cancel_text: str = "Cancelar"
     ):
+        """
+        Inicializa el SmartForm.
+
+        :param title: Título del formulario (opcional).
+        :param subtitle: Subtítulo (opcional).
+        :param padding: Padding interno de la tarjeta.
+        :param gap: Espaciado entre columnas del grid.
+        :param columns: Número de columnas del grid (CSS grid).
+        :param max_width: Ancho máximo de la tarjeta (ej: '600px').
+        :param submit_callback: Función a ejecutar al pulsar "Guardar".
+        :param cancel_callback: Función a ejecutar al pulsar "Cancelar".
+        :param submit_text: Texto del botón de guardado.
+        :param cancel_text: Texto del botón de cancelación.
+        """
         self.title = title
         self.subtitle = subtitle
         self.padding = padding
@@ -27,12 +48,17 @@ class SmartForm:
         self.submit_text = submit_text
         self.cancel_text = cancel_text
 
-        self.fields = []
-        self.container = None
-        self.grid_container = None   # Nuevo: contenedor grid
-        self.field_count = 0
+        self.fields = []                # Lista de componentes de campo generados
+        self.container = None           # Tarjeta principal (se crea en build)
+        self.grid_container = None      # Contenedor interno con display: grid
 
     def build(self) -> ui.card:
+        """
+        Construye y retorna la tarjeta del formulario con todos sus elementos.
+        Debe llamarse después de agregar los campos (add_field) para mostrarlos.
+
+        :return: Componente ui.card que contiene el formulario.
+        """
         with ui.card() as self.container:
             self.container.classes('w-full').style(
                 f'background: var(--bg-card); '
@@ -48,7 +74,6 @@ class SmartForm:
                 ui.label(self.subtitle).classes('text-caption').style('color: var(--text-muted)')
                 ui.separator().classes('my-2').style('background: var(--border)')
 
-            # Usamos CSS Grid para un control exacto de columnas
             self.grid_container = ui.element('div').style(
                 f'display: grid; '
                 f'grid-template-columns: repeat({self.columns}, 1fr); '
@@ -78,7 +103,20 @@ class SmartForm:
         on_change: Optional[Callable] = None,
         **kwargs
     ):
-        # Cada campo ocupará una celda del grid
+        """
+        Agrega un campo al formulario (dentro de la cuadrícula).
+
+        :param field_type: Tipo de campo ('input', 'textarea', 'select', 'number', 'date', 'email', 'password').
+        :param label: Etiqueta del campo.
+        :param placeholder: Texto de placeholder.
+        :param value: Valor inicial.
+        :param required: Si es obligatorio (no se aplica validación automática).
+        :param rows: Número de filas (solo para textarea).
+        :param options: Lista de opciones (solo para select).
+        :param on_change: Callback al cambiar el valor.
+        :param kwargs: Argumentos adicionales pasados al componente NiceGUI.
+        :return: El componente de campo creado (ui.input, ui.select, etc.).
+        """
         with self.grid_container:
             with ui.element('div').style('width: 100%;'):
                 if label:
@@ -120,4 +158,9 @@ class SmartForm:
         return field
 
     def get_values(self) -> dict:
+        """
+        Obtiene los valores actuales de todos los campos del formulario.
+
+        :return: Diccionario con claves 'field_0', 'field_1', ... y sus respectivos valores.
+        """
         return {f"field_{i}": f.value for i, f in enumerate(self.fields)}

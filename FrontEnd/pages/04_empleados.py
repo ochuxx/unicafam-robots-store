@@ -9,6 +9,12 @@ from mock_data import empleados_mock
 # ──────────────────────────────────────────────────────────────────────
 
 def registrar_empleado_en_backend(datos: dict) -> dict:
+    """
+    Agrega un nuevo empleado a la base de datos mock (empleados_mock).
+
+    :param datos: Diccionario con las claves: documento, nombre, cargo, correo, telefono.
+    :return: El diccionario del empleado recién creado.
+    """
     nuevo_empleado = {
         "id":        datos["documento"],
         "nombre":    datos["nombre"],
@@ -21,6 +27,13 @@ def registrar_empleado_en_backend(datos: dict) -> dict:
 
 
 def actualizar_empleado_en_backend(doc_empleado: str, datos: dict) -> bool:
+    """
+    Actualiza los datos de un empleado existente en empleados_mock.
+
+    :param doc_empleado: Documento de identidad del empleado a actualizar.
+    :param datos: Diccionario con los campos a actualizar (nombre, cargo, correo, telefono).
+    :return: True si se encontró y actualizó, False en caso contrario.
+    """
     for i, emp in enumerate(empleados_mock):
         if emp["id"] == doc_empleado:
             empleados_mock[i].update(datos)
@@ -29,6 +42,12 @@ def actualizar_empleado_en_backend(doc_empleado: str, datos: dict) -> bool:
 
 
 def eliminar_empleado_en_backend(doc_empleado: str) -> bool:
+    """
+    Elimina un empleado de empleados_mock por su documento de identidad.
+
+    :param doc_empleado: Documento del empleado a eliminar.
+    :return: True si se eliminó al menos un empleado, False si no se encontró.
+    """
     global empleados_mock
     longitud_anterior = len(empleados_mock)
     empleados_mock[:] = [e for e in empleados_mock if e["id"] != doc_empleado]
@@ -40,6 +59,16 @@ def eliminar_empleado_en_backend(doc_empleado: str) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 
 def page(content_container):
+    """
+    Renderiza la página de gestión de empleados en el contenedor proporcionado.
+
+    Incluye:
+    - Formulario de registro (SmartForm con 2 columnas).
+    - Tabla de empleados (SmartTable) con acciones editar/eliminar.
+    - Diálogos para edición y confirmación de eliminación.
+
+    :param content_container: Contenedor (ui.column) donde se montará la página.
+    """
     with content_container:
         ui.label("Gestión de Empleados").classes("page-title")
         ui.label("Registro de personal").classes("page-subtitle").style(
@@ -108,7 +137,13 @@ def page(content_container):
 # ──────────────────────────────────────────────────────────────────────
 
 def _registrar_empleado(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """Valida el formulario, persiste el empleado y refresca la tabla."""
+    """
+    Callback del botón Guardar empleado. Valida el formulario, persiste el empleado
+    y refresca la tabla.
+
+    :param f: Instancia del SmartForm con los campos.
+    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
+    """
     if not f.documento.value or not f.nombre.value:
         ui.notify("Documento de identidad y nombre son obligatorios", type="negative")
         return
@@ -144,7 +179,13 @@ def _registrar_empleado(f: SmartForm, tabla_ref: SmartTable) -> None:
 
 
 def _manejar_accion_empleado(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
-    """Despachador de acciones de la tabla."""
+    """
+    Despachador de acciones de la tabla de empleados.
+
+    :param accion: Nombre de la acción ('editar' o 'eliminar').
+    :param fila: Diccionario con los datos del empleado.
+    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
+    """
     if accion == "editar":
         _abrir_dialogo_edicion_empleado(fila, tabla_ref)
     elif accion == "eliminar":
@@ -152,7 +193,12 @@ def _manejar_accion_empleado(accion: str, fila: dict, tabla_ref: SmartTable) -> 
 
 
 def _abrir_dialogo_edicion_empleado(fila: dict, tabla_ref: SmartTable) -> None:
-    """Abre un diálogo modal con los datos del empleado para editarlos."""
+    """
+    Abre un diálogo modal con los datos del empleado para editarlos.
+
+    :param fila: Datos actuales del empleado.
+    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar empleado — {fila['id']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -194,7 +240,12 @@ def _abrir_dialogo_edicion_empleado(fila: dict, tabla_ref: SmartTable) -> None:
 
 
 def _confirmar_eliminacion_empleado(fila: dict, tabla_ref: SmartTable) -> None:
-    """Abre un diálogo de confirmación antes de eliminar el empleado."""
+    """
+    Abre un diálogo de confirmación antes de eliminar el empleado.
+
+    :param fila: Datos del empleado a eliminar.
+    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar empleado").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"

@@ -2,10 +2,14 @@
 from nicegui import ui
 from mock_data import get_all_mock_data
 
+
 def format_number_abbreviated(num: float) -> str:
     """
     Convierte un número en formato abreviado (K, M, B, T).
     Ejemplo: 1,234,567 -> 1.23M, 1,234,567,890 -> 1.23B
+
+    :param num: Número a formatear.
+    :return: Cadena con sufijo K, M, B o T según corresponda.
     """
     if num < 1000:
         return f'{num:.0f}'
@@ -18,12 +22,22 @@ def format_number_abbreviated(num: float) -> str:
     else:
         return f'{num / 1_000_000_000_000:.1f}T'
 
+
 def page(container: ui.column):
     """
-    Renderiza el Monitoreo General en el contenedor proporcionado.
+    Renderiza la página de Monitoreo General en el contenedor proporcionado.
+
+    Muestra:
+    - Tarjetas de resumen (ventas totales, clientes, stock, soportes abiertos).
+    - Lista de últimas ventas (hasta 15).
+    - Productos con bajo stock (stock < 5).
+    - Tickets de soporte recientes.
+    - Actualización automática cada 3 segundos vía ui.timer.
+
+    :param container: Columna de NiceGUI donde se montará el contenido de la página.
     """
     with container:
-        # ---- TÍTULO Y SUBTÍTULO (siguiendo el estilo de clientes.py) ----
+        # ---- TÍTULO Y SUBTÍTULO ----
         ui.label("Monitoreo en Vivo").classes("page-title")
         ui.label("Alertas y última actividad del sistema").classes("page-subtitle").style(
             "margin-bottom: 24px;"
@@ -32,10 +46,10 @@ def page(container: ui.column):
         # ---- Contenedor para tarjetas superiores ----
         cards_container = ui.row().classes('w-full gap-4 flex-wrap items-stretch')
 
-        # ---- Contenedor para las dos columnas ----
+        # ---- Contenedor para las dos columnas (ventas a la izquierda, bajo stock + soporte a la derecha) ----
         main_row = ui.row().classes('w-full gap-6 mt-6').style('align-items: stretch')
 
-        # ---- Función de renderizado ----
+        # ---- Función de renderizado (se ejecuta inicialmente y cada 3 segundos) ----
         def renderizar_dashboard():
             # 1. Obtener datos actualizados
             data = get_all_mock_data()
@@ -55,6 +69,9 @@ def page(container: ui.column):
             cards_container.clear()
             with cards_container:
                 def crear_tarjeta(titulo, valor, icono, color):
+                    """
+                    Crea una tarjeta de métrica con título, valor abreviado, icono y color de borde izquierdo.
+                    """
                     with ui.card().classes(f'flex-1 min-w-[200px] bg-[#0a1e28] border-l-[6px] border-[{color}] p-4'):
                         with ui.column().classes('h-full justify-center rounded-r-lg'):
                             with ui.row().classes('items-center gap-2 w-full'):
@@ -75,16 +92,18 @@ def page(container: ui.column):
                         with ui.row().classes('items-center gap-2 mb-4'):
                             ui.icon('receipt', color='#1aabb8')
                             ui.label('Últimas ventas').classes('text-lg font-bold text-[#d0f0f5]')
-                        
+
                         ultimas_ventas = sorted(ventas, key=lambda x: x['fecha_venta'], reverse=True)[:15]
-                        
+
                         with ui.column().classes('flex-1 overflow-y-auto w-full gap-2'):
+                            # Cabecera
                             with ui.row().classes('w-full text-xs text-[#6b9caa] uppercase font-bold border-b border-[#1aabb8]/20 pb-2'):
                                 ui.label('#').classes('w-12')
                                 ui.label('CLIENTE').classes('flex-1')
                                 ui.label('FECHA').classes('w-32')
                                 ui.label('TOTAL').classes('w-32 text-right')
-                            
+
+                            # Filas de ventas
                             for idx, venta in enumerate(ultimas_ventas, 1):
                                 cliente_nombre = next((c['nombre'] for c in clientes if c['nit'] == venta['id_cliente']), 'Desconocido')
                                 fecha = venta['fecha_venta'][:10]
@@ -101,7 +120,7 @@ def page(container: ui.column):
                         with ui.row().classes('items-center gap-2 mb-3'):
                             ui.icon('warning', color='#ffd93d')
                             ui.label('Bajo stock').classes('text-lg font-bold text-[#d0f0f5]')
-                        
+
                         bajo_stock = [item for item in inventario if item['stock'] < 5]
                         if bajo_stock:
                             for item in bajo_stock[:3]:
@@ -118,14 +137,15 @@ def page(container: ui.column):
                         with ui.row().classes('items-center gap-2 mb-3'):
                             ui.icon('support_agent', color='#1aabb8')
                             ui.label('Soporte reciente').classes('text-lg font-bold text-[#d0f0f5]')
-                        
+
                         ultimos_soportes = sorted(soporte, key=lambda x: x['fecha_actualizacion'], reverse=True)[:6]
-                        
+
                         with ui.column().classes('w-full gap-2 flex-1'):
+                            # Cabecera
                             with ui.row().classes('w-full text-xs text-[#6b9caa] uppercase font-bold pb-1'):
                                 ui.label('CLIENTE').classes('flex-1')
                                 ui.label('ESTADO').classes('w-24')
-                            
+
                             for ticket in ultimos_soportes:
                                 cliente_nombre = next((c['nombre'] for c in clientes if c['nit'] == ticket['id_cliente']), 'Desconocido')
                                 estado = ticket['estado']
@@ -136,7 +156,7 @@ def page(container: ui.column):
                                     'Cancelado': '#6b9caa'
                                 }
                                 bg_color = color_map.get(estado, '#6b9caa')
-                                
+
                                 with ui.row().classes('w-full py-2 border-b border-[#1aabb8]/10'):
                                     ui.label(cliente_nombre).classes('flex-1 text-[#d0f0f5] text-sm')
                                     ui.label(estado).classes('w-24 text-xs font-bold px-2 py-1 rounded-full text-center').style(

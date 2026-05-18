@@ -2,7 +2,10 @@
 from nicegui import ui
 
 def apply_global_styles():
-    """Inyecta el CSS global y el JavaScript del toggle en la página."""
+    """
+    Inyecta el CSS global y el JavaScript del toggle en la página.
+    Se debe llamar una vez al inicio de la aplicación (por ejemplo, en main.py).
+    """
     ui.add_head_html("""
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
@@ -28,7 +31,6 @@ def apply_global_styles():
       ::-webkit-scrollbar-track { background: var(--bg-dark); }
       ::-webkit-scrollbar-thumb { background: var(--teal-mid); border-radius: 3px; }
 
-      /* Sidebar */
       .sidebar-wrapper {
         position: fixed;
         left: 0;
@@ -55,7 +57,6 @@ def apply_global_styles():
       .sidebar-scroll::-webkit-scrollbar { width: 4px; }
       .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--teal-accent); }
 
-      /* Logo - más grande y visible */
       .sidebar-logo {
         padding: 20px 16px;
         border-bottom: 1px solid var(--border);
@@ -105,7 +106,6 @@ def apply_global_styles():
       }
       .sidebar-footer span { color: var(--teal-accent); }
 
-      /* Toggle fuera del sidebar (siempre visible) */
       .toggle-btn {
         position: fixed;
         top: 16px;
@@ -128,7 +128,6 @@ def apply_global_styles():
       .toggle-btn.right { left: 270px; }
       .toggle-btn.left  { left: 16px; }
 
-      /* Main content */
       .main-content {
         margin-left: 260px;
         padding: 28px 32px 28px 80px;
@@ -144,7 +143,6 @@ def apply_global_styles():
     </style>
     """, shared=True)
 
-    # JavaScript para el toggle (se inyecta una sola vez)
     ui.add_body_html("""
     <script>
     function toggleSidebar() {
@@ -160,48 +158,42 @@ def apply_global_styles():
     </script>
     """, shared=True)
 
-def create_sidebar_layout(content_container, render_section):
+
+def create_sidebar_layout(render_section):
     """
-    Construye el sidebar y el toggle.
-    
-    Args:
-        content_container: ui.column donde se renderizará el contenido.
-        render_section: función que recibe (section_name) y renderiza el contenido.
+    Construye el sidebar (menú de navegación) y el botón toggle.
+
+    :param render_section: Función que recibe (section_name) y renderiza el contenido correspondiente.
+    :return: Diccionario nav_buttons con las referencias a los botones.
     """
-    # Toggle
     with ui.element('div').classes('toggle-btn right') as toggle:
         ui.label('☰')
     toggle.on('click', lambda: ui.run_javascript('toggleSidebar()'))
 
-    # Sidebar
     with ui.element('div').classes('sidebar-wrapper'):
-        # Logo - ahora más grande (max-width 200px, width 100%)
         with ui.element('div').classes('sidebar-logo'):
-            ui.image('static/logo.png').style('width: 100%; max-width: 200px; height: auto; max-height: 100px; object-fit: contain; display: block; margin: 0 auto;')
+            ui.image('static/logo.png').style(
+                'width: 100%; max-width: 200px; height: auto; max-height: 100px; '
+                'object-fit: contain; display: block; margin: 0 auto;'
+            )
 
-        nav_buttons = {}  # Diccionario para manejar el estado activo
+        nav_buttons = {}
 
-        # Función auxiliar para actualizar el botón activo
         def set_active_section(section_name):
-            # Quita la clase 'active' de todos los botones
             for btn in nav_buttons.values():
                 btn.classes(remove='active')
-            # Añade la clase 'active' al botón correspondiente
             if section_name in nav_buttons:
                 nav_buttons[section_name].classes(add='active')
 
-        # Wrapper que actualiza el activo y renderiza
         def navigate_to(section_name):
             set_active_section(section_name)
             render_section(section_name)
 
         with ui.element('div').classes('sidebar-scroll'):
-            # Principal
             ui.html('<div class="nav-section">Principal</div>')
             btn_dash = ui.button('📊 monitoreo', on_click=lambda: navigate_to('monitoreo')).props('flat').classes('nav-btn active')
             nav_buttons['monitoreo'] = btn_dash
 
-            # Datos maestros
             ui.html('<div class="nav-section">Datos maestros</div>')
             btn_clientes = ui.button('👥 Clientes', on_click=lambda: navigate_to('clientes')).props('flat').classes('nav-btn')
             nav_buttons['clientes'] = btn_clientes
@@ -214,19 +206,16 @@ def create_sidebar_layout(content_container, render_section):
             btn_inventario = ui.button('📦 Inventario', on_click=lambda: navigate_to('inventario')).props('flat').classes('nav-btn')
             nav_buttons['inventario'] = btn_inventario
 
-            # Operaciones
             ui.html('<div class="nav-section">Operaciones</div>')
             btn_ventas = ui.button('💰 Ventas', on_click=lambda: navigate_to('ventas')).props('flat').classes('nav-btn')
             nav_buttons['ventas'] = btn_ventas
             btn_soporte = ui.button('🔧 Soporte Técnico', on_click=lambda: navigate_to('soporte')).props('flat').classes('nav-btn')
             nav_buttons['soporte'] = btn_soporte
 
-            # Análisis
             ui.html('<div class="nav-section">Análisis</div>')
             btn_analitica = ui.button('🔍 analitica', on_click=lambda: navigate_to('analitica')).props('flat').classes('nav-btn')
             nav_buttons['analitica'] = btn_analitica
 
-        # Footer
         ui.html('''
         <div class="sidebar-footer">
             Unicafam · Gestor de datos 2026<br>

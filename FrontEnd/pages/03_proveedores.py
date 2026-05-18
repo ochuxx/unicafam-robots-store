@@ -9,6 +9,12 @@ from mock_data import proveedores_mock
 # ──────────────────────────────────────────────────────────────────────
 
 def registrar_proveedor_en_backend(datos: dict) -> dict:
+    """
+    Agrega un nuevo proveedor a la base de datos mock (proveedores_mock).
+
+    :param datos: Diccionario con las claves: nit, nombre_empresa, contacto, telefono, correo.
+    :return: El diccionario del proveedor recién creado.
+    """
     nuevo_proveedor = {
         "nit":            datos["nit"],
         "nombre_empresa": datos["nombre_empresa"],
@@ -21,6 +27,13 @@ def registrar_proveedor_en_backend(datos: dict) -> dict:
 
 
 def actualizar_proveedor_en_backend(nit_proveedor: str, datos: dict) -> bool:
+    """
+    Actualiza los datos de un proveedor existente en proveedores_mock.
+
+    :param nit_proveedor: NIT del proveedor a actualizar.
+    :param datos: Diccionario con los campos a actualizar (nombre_empresa, contacto, telefono, correo).
+    :return: True si se encontró y actualizó, False en caso contrario.
+    """
     for i, prov in enumerate(proveedores_mock):
         if prov["nit"] == nit_proveedor:
             proveedores_mock[i].update(datos)
@@ -29,6 +42,12 @@ def actualizar_proveedor_en_backend(nit_proveedor: str, datos: dict) -> bool:
 
 
 def eliminar_proveedor_en_backend(nit_proveedor: str) -> bool:
+    """
+    Elimina un proveedor de proveedores_mock por su NIT.
+
+    :param nit_proveedor: NIT del proveedor a eliminar.
+    :return: True si se eliminó al menos un proveedor, False si no se encontró.
+    """
     global proveedores_mock
     longitud_anterior = len(proveedores_mock)
     proveedores_mock[:] = [p for p in proveedores_mock if p["nit"] != nit_proveedor]
@@ -40,6 +59,16 @@ def eliminar_proveedor_en_backend(nit_proveedor: str) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 
 def page(content_container):
+    """
+    Renderiza la página de gestión de proveedores en el contenedor proporcionado.
+
+    Incluye:
+    - Formulario de registro (SmartForm con 2 columnas).
+    - Tabla de proveedores (SmartTable) con acciones editar/eliminar.
+    - Diálogos para edición y confirmación de eliminación.
+
+    :param content_container: Contenedor (ui.column) donde se montará la página.
+    """
     with content_container:
         ui.label("Gestión de Proveedores").classes("page-title")
         ui.label("Registro de empresas proveedoras de robots").classes("page-subtitle").style(
@@ -108,7 +137,13 @@ def page(content_container):
 # ──────────────────────────────────────────────────────────────────────
 
 def _registrar_proveedor(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """Valida el formulario, persiste el proveedor y refresca la tabla."""
+    """
+    Callback del botón Guardar proveedor. Valida el formulario, persiste el proveedor
+    y refresca la tabla.
+
+    :param f: Instancia del SmartForm con los campos.
+    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
+    """
     if not f.nit.value or not f.nombre_empresa.value:
         ui.notify("NIT y nombre de empresa son obligatorios", type="negative")
         return
@@ -144,7 +179,13 @@ def _registrar_proveedor(f: SmartForm, tabla_ref: SmartTable) -> None:
 
 
 def _manejar_accion_proveedor(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
-    """Despachador de acciones de la tabla."""
+    """
+    Despachador de acciones de la tabla de proveedores.
+
+    :param accion: Nombre de la acción ('editar' o 'eliminar').
+    :param fila: Diccionario con los datos del proveedor.
+    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
+    """
     if accion == "editar":
         _abrir_dialogo_edicion_proveedor(fila, tabla_ref)
     elif accion == "eliminar":
@@ -152,7 +193,12 @@ def _manejar_accion_proveedor(accion: str, fila: dict, tabla_ref: SmartTable) ->
 
 
 def _abrir_dialogo_edicion_proveedor(fila: dict, tabla_ref: SmartTable) -> None:
-    """Abre un diálogo modal con los datos del proveedor para editarlos."""
+    """
+    Abre un diálogo modal con los datos del proveedor para editarlos.
+
+    :param fila: Datos actuales del proveedor.
+    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar proveedor — {fila['nit']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -194,7 +240,12 @@ def _abrir_dialogo_edicion_proveedor(fila: dict, tabla_ref: SmartTable) -> None:
 
 
 def _confirmar_eliminacion_proveedor(fila: dict, tabla_ref: SmartTable) -> None:
-    """Abre un diálogo de confirmación antes de eliminar el proveedor."""
+    """
+    Abre un diálogo de confirmación antes de eliminar el proveedor.
+
+    :param fila: Datos del proveedor a eliminar.
+    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar proveedor").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"

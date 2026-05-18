@@ -4,11 +4,18 @@ from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import robots_mock
 
+
 # ──────────────────────────────────────────────────────────────────────
 # Operaciones de backend (mock)
 # ──────────────────────────────────────────────────────────────────────
 
 def registrar_robot_en_backend(datos: dict) -> dict:
+    """
+    Agrega un nuevo robot a la base de datos mock (robots_mock).
+
+    :param datos: Diccionario con las claves: id, nombre, descripcion, tipo.
+    :return: El diccionario del robot recién creado.
+    """
     nuevo_robot = {
         "id":          datos["id"],
         "nombre":      datos["nombre"],
@@ -20,6 +27,13 @@ def registrar_robot_en_backend(datos: dict) -> dict:
 
 
 def actualizar_robot_en_backend(id_robot: str, datos: dict) -> bool:
+    """
+    Actualiza los datos de un robot existente en robots_mock.
+
+    :param id_robot: Número de serie (id) del robot a actualizar.
+    :param datos: Diccionario con los campos a actualizar (nombre, descripcion, tipo).
+    :return: True si se encontró y actualizó, False en caso contrario.
+    """
     for i, robot in enumerate(robots_mock):
         if robot["id"] == id_robot:
             robots_mock[i].update(datos)
@@ -28,6 +42,12 @@ def actualizar_robot_en_backend(id_robot: str, datos: dict) -> bool:
 
 
 def eliminar_robot_en_backend(id_robot: str) -> bool:
+    """
+    Elimina un robot de robots_mock por su número de serie.
+
+    :param id_robot: Número de serie (id) del robot a eliminar.
+    :return: True si se eliminó al menos un robot, False si no se encontró.
+    """
     global robots_mock
     longitud_anterior = len(robots_mock)
     robots_mock[:] = [r for r in robots_mock if r["id"] != id_robot]
@@ -42,6 +62,16 @@ TIPOS_ROBOT = ["Doméstico", "Industrial", "Educativo", "Médico", "Comercial", 
 
 
 def page(content_container):
+    """
+    Renderiza la página de gestión de robots en el contenedor proporcionado.
+
+    Incluye:
+    - Formulario de registro (SmartForm con 2 columnas).
+    - Tabla de robots (SmartTable) con acciones editar/eliminar.
+    - Diálogos para edición y confirmación de eliminación.
+
+    :param content_container: Contenedor (ui.column) donde se montará la página.
+    """
     with content_container:
         ui.label("Gestión de Robots").classes("page-title")
         ui.label("Registro y catálogo de robots").classes("page-subtitle").style(
@@ -107,6 +137,13 @@ def page(content_container):
 # ──────────────────────────────────────────────────────────────────────
 
 def _registrar_robot(f: SmartForm, tabla_ref: SmartTable) -> None:
+    """
+    Callback del botón Guardar robot. Valida el formulario, persiste el robot
+    y refresca la tabla.
+
+    :param f: Instancia del SmartForm con los campos.
+    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
+    """
     if not f.id_robot.value or not f.nombre.value or not f.tipo.value:
         ui.notify("Número de serie, nombre y tipo son obligatorios", type="negative")
         return
@@ -133,6 +170,13 @@ def _registrar_robot(f: SmartForm, tabla_ref: SmartTable) -> None:
 
 
 def _manejar_accion_robot(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
+    """
+    Despachador de acciones de la tabla de robots.
+
+    :param accion: Nombre de la acción ('editar' o 'eliminar').
+    :param fila: Diccionario con los datos del robot.
+    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
+    """
     if accion == "editar":
         _abrir_dialogo_edicion_robot(fila, tabla_ref)
     elif accion == "eliminar":
@@ -140,6 +184,12 @@ def _manejar_accion_robot(accion: str, fila: dict, tabla_ref: SmartTable) -> Non
 
 
 def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
+    """
+    Abre un diálogo modal con los datos del robot para editarlos.
+
+    :param fila: Datos actuales del robot.
+    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar robot — {fila['id']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -181,6 +231,12 @@ def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
 
 
 def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable) -> None:
+    """
+    Abre un diálogo de confirmación antes de eliminar el robot.
+
+    :param fila: Datos del robot a eliminar.
+    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar robot").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"

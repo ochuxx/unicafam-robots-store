@@ -1,210 +1,147 @@
 # 🚀 SmartBot Solutions - Sistema de Gestión para Venta y Soporte de Robots
 
-![Estado](https://img.shields.io/badge/Estado-Diseño-blue)  
-![Base de Datos](https://img.shields.io/badge/Base%20de%20Datos-Relacional-green)  
-![Herramienta](https://img.shields.io/badge/Herramienta-Google%20Sheets-orange)
+![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen)  
+![Frontend](https://img.shields.io/badge/Frontend-NiceGUI-blue)  
+![Datos](https://img.shields.io/badge/Datos-Mock-orange)
 
 ## 📌 Introducción
 
 **SmartBot Solutions** es una empresa tecnológica dedicada a la venta, distribución y soporte técnico de robots inteligentes para hogares, empresas e instituciones educativas.
 
-Con el crecimiento de la empresa, surge la necesidad de implementar un sistema organizado que permita gestionar clientes, inventario, ventas y soporte técnico de manera eficiente.  
-El presente proyecto propone el diseño de una **base de datos relacional** capaz de centralizar toda la información de la compañía mediante formularios digitales y estructuras organizadas de almacenamiento de datos.
+Con el crecimiento de la empresa, se ha implementado un **sistema de gestión completo** que permite administrar clientes, inventario, ventas y soporte técnico de manera eficiente mediante una interfaz web moderna construida con **NiceGUI** y una base de datos relacional simulada (mock) para demostrar su funcionalidad.
 
 ## ❗ Planteamiento del Problema
 
-Actualmente la empresa maneja parte de la información de manera manual y dispersa, generando dificultades en el control de inventario, seguimiento de ventas y gestión de soporte técnico. Entre los principales problemas identificados se encuentran:
+El sistema resuelve los siguientes problemas identificados inicialmente:
 
-- Duplicidad de registros.
-- Errores en el control de stock.
-- Dificultad para consultar información histórica.
-- Desorganización de clientes y proveedores.
-- Falta de trazabilidad en solicitudes de soporte técnico.
-
-Por ello se propone el desarrollo de una base de datos relacional que permita optimizar la administración de la información.
+- Duplicidad de registros → **Validación de NIT/ID en formularios**.
+- Errores en el control de stock → **Actualización automática en inventario**.
+- Dificultad para consultar información histórica → **Tablas con filtros y paginación**.
+- Desorganización de clientes y proveedores → **CRUD completo con búsqueda**.
+- Falta de trazabilidad en soporte técnico → **Registro y cambio de estado de tickets**.
 
 ## 🎯 Objetivos
 
 ### Objetivo General
-Diseñar una base de datos relacional para SmartBot Solutions que permita gestionar clientes, inventario, ventas y soporte técnico de manera organizada, eficiente y escalable.
+Implementar una aplicación web funcional que gestione clientes, inventario, ventas y soporte técnico de forma organizada, eficiente y escalable.
 
 ### Objetivos Específicos
-- Diseñar tablas estructuradas para almacenar información.
-- Establecer relaciones entre entidades.
-- Crear formularios para el ingreso de datos.
-- Controlar el inventario de robots.
-- Registrar ventas y clientes.
-- Gestionar soporte técnico y mantenimientos.
-- Facilitar consultas y reportes administrativos.
+- ✅ Diseñar componentes reutilizables (SmartForm, SmartTable) con NiceGUI.
+- ✅ Establecer relaciones entre entidades mediante claves foráneas en los datos mock.
+- ✅ Crear formularios dinámicos con validación y diseño responsive.
+- ✅ Controlar el inventario de robots (stock, precios, proveedores).
+- ✅ Registrar ventas con múltiples productos y cálculo automático de totales.
+- ✅ Gestionar soporte técnico con estados y fechas de actualización.
+- ✅ Facilitar consultas y reportes administrativos (analítica de ventas y soporte).
 
 ## 📐 Alcance del Proyecto
 
-El sistema permitirá:
+El sistema permite (vía interfaz web):
 
-- Registrar clientes.
-- Registrar robots disponibles.
-- Administrar proveedores.
-- Gestionar ventas.
-- Registrar empleados.
-- Controlar inventario.
-- Registrar solicitudes de soporte técnico.
+- Registro, edición y eliminación de **clientes** (con NIT único).
+- Registro, edición y eliminación de **robots** (número de serie único).
+- Administración de **proveedores** (NIT, contacto, teléfono, correo).
+- Gestión de **empleados** (documento, nombre, cargo, contacto).
+- Control de **inventario** (código de barras, precio, stock, robot, proveedor).
+- Registro de **ventas** con selección de cliente, empleado y múltiples robots (detalle dinámico).
+- Seguimiento de **soporte técnico** (tickets con estado y fecha de última actualización).
+- **Analítica** integrada: robots más vendidos, clientes con mayor facturación, estado del soporte.
+- **Monitoreo en vivo** con actualización automática cada 3 segundos.
 
 ## ⚙️ Requerimientos del Sistema
 
 ### Requerimientos Funcionales
-- Registrar nuevos clientes.
-- Registrar robots en inventario.
-- Actualizar el stock de productos.
-- Registrar ventas.
-- Relacionar clientes con compras realizadas.
-- Registrar proveedores.
-- Registrar empleados.
-- Registrar solicitudes de soporte técnico.
-- Consultar historial de ventas.
-- Consultar robots con bajo stock.
+- ✅ Registrar nuevos clientes.
+- ✅ Registrar robots en inventario.
+- ✅ Actualizar el stock de productos (desde inventario).
+- ✅ Registrar ventas (con múltiples productos).
+- ✅ Relacionar clientes con compras realizadas.
+- ✅ Registrar proveedores.
+- ✅ Registrar empleados.
+- ✅ Registrar solicitudes de soporte técnico.
+- ✅ Consultar historial de ventas (tabla con filtros).
+- ✅ Consultar robots con bajo stock (en monitoreo).
 
 ### Requerimientos No Funcionales
-- Fácil de usar.
-- Organizado y estructurado.
-- Escalable para futuras mejoras.
-- Rápido en consultas básicas.
-- Capaz de evitar duplicidad de información.
+- ✅ Fácil de usar (interfaz intuitiva, sidebar colapsable, tema oscuro).
+- ✅ Organizado y estructurado (código modular con componentes reutilizables).
+- ✅ Escalable (fácil de conectar a una base de datos real en el futuro).
+- ✅ Rápido en consultas básicas (filtrado y ordenamiento en cliente).
+- ✅ Capaz de evitar duplicidad de información (validación en backend mock).
 
-## 🗃️ Diseño de la Base de Datos
+## 🗃️ Estructura de Datos (Mock)
 
-### Tabla 1: Clientes
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_cliente       | INT          | Identificador único del cliente   |
-| nombre           | VARCHAR      | Nombre completo                   |
-| correo           | VARCHAR      | Correo electrónico                |
-| telefono         | VARCHAR      | Número telefónico                 |
-| direccion        | VARCHAR      | Dirección de residencia           |
-| fecha_registro   | DATE         | Fecha de registro                 |
+Se generan **1000 registros por tabla** con relaciones coherentes. Las entidades principales son:
 
-### Tabla 2: Robots
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_robot         | INT          | Identificador único               |
-| nombre           | VARCHAR      | Nombre del robot                  |
-| descripcion      | VARCHAR      | Descripción del robot             |
-| tipo             | VARCHAR      | Nombre de la categoría            |
+1. **Clientes** (NIT, nombre, correo, teléfono, dirección, fecha_registro)
+2. **Proveedores** (NIT, nombre_empresa, contacto, teléfono, correo)
+3. **Robots** (id_serie, nombre, descripción, tipo)
+4. **Empleados** (id, nombre, cargo, correo, teléfono)
+5. **Inventario** (código_barras, precio, stock, fecha_registro, id_proveedor, id_robot)
+6. **Ventas** (id, fecha_venta, total, id_cliente, id_empleado)
+7. **Detalle_Venta** (id, id_venta, id_inventario, cantidad, subtotal)
+8. **Soporte_Técnico** (id, fecha_reporte, fecha_actualizacion, problema, estado, id_cliente, id_robot)
 
-### Tabla 3: Proveedores
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_proveedor     | INT          | Identificador único               |
-| nombre_empresa   | VARCHAR      | Nombre del proveedor              |
-| contacto         | VARCHAR      | Persona de contacto               |
-| telefono         | VARCHAR      | Número telefónico                 |
-| correo           | VARCHAR      | Correo empresarial                |
+## 🔗 Relaciones Entre Tablas 
 
-### Tabla 4: Inventarios
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_inventario    | INT          | Identificador del inventario      |
-| precio           | DECIMAL      | Precio de venta                   |
-| stock            | INT          | Cantidad disponible               |
-| fecha_registro   | DATETIME     | Fecha de ingreso de robots        |
-| id_proveedor     | INT          | Proveedor asociado (FK)           |
-| id_robot         | INT          | Robot asociado (FK)               |
-
-### Tabla 5: Empleados
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_empleado      | INT          | Identificador                     |
-| nombre           | VARCHAR      | Nombre del empleado               |
-| cargo            | VARCHAR      | Cargo laboral                     |
-| correo           | VARCHAR      | Correo corporativo                |
-| telefono         | VARCHAR      | Número de contacto                |
-
-### Tabla 6: Ventas
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_venta         | INT          | Identificador de venta            |
-| fecha_venta      | DATETIME     | Fecha de compra                   |
-| total            | DECIMAL      | Valor total                       |
-| id_cliente       | INT          | Cliente asociado (FK)             |
-| id_empleado      | INT          | Empleado responsable (FK)         |
-
-### Tabla 7: Detalle_Venta
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_detalle       | INT          | Identificador                     |
-| id_venta         | INT          | Venta relacionada (FK)            |
-| id_inventario    | INT          | Robot vendido desde inventario (FK) |
-| cantidad         | INT          | Cantidad comprada                 |
-| subtotal         | DECIMAL      | Valor parcial                     |
-
-### Tabla 8: Soporte_Tecnico
-| Campo            | Tipo de dato | Descripción                       |
-|------------------|--------------|-----------------------------------|
-| id_soporte       | INT          | Identificador                     |
-| fecha_reporte    | DATETIME     | Fecha del reporte                 |
-| problema         | TEXT         | Descripción de la falla           |
-| estado           | VARCHAR      | Estado del caso                   |
-| id_cliente       | INT          | Cliente asociado (FK)             |
-| id_robot         | INT          | Robot relacionado (FK)            |
-
-## 🔗 Relaciones Entre Tablas
-
-- Un **cliente** puede realizar muchas **ventas** (1:N).
+- Un **cliente** puede tener muchas **ventas** (1:N).
 - Un **empleado** puede registrar muchas **ventas** (1:N).
-- Un **proveedor** puede suministrar muchos **robots** (1:N).
+- Un **proveedor** puede suministrar muchos **robots** (a través de inventario, 1:N).
 - Una **venta** puede contener varios **robots** (N:M a través de Detalle_Venta).
 - Un **robot** puede aparecer en múltiples **ventas** (N:M a través de Detalle_Venta).
 - Un **cliente** puede generar múltiples **solicitudes de soporte** (1:N).
 - Un **robot** puede tener varios **registros de soporte técnico** (1:N).
 
-## 📊 Modelo Relacional
+## 🖥️ Tecnologías Utilizadas
 
-- Clientes **(1:N)** Ventas
-- Empleados **(1:N)** Ventas
-- Ventas **(1:N)** Detalle_Venta
-- Robots **(1:N)** Detalle_Venta
-- Proveedores **(1:N)** Robots
-- Clientes **(1:N)** Soporte_Tecnico
-- Robots **(1:N)** Soporte_Tecnico
+- **Python 3.10+**
+- **NiceGUI** – Framework para interfaz web reactiva.
+- **Pandas** – Procesamiento de datos para analítica.
+- **CSS personalizado** – Estilos oscuros temáticos (teal/dark).
+- **JavaScript** – Toggle del sidebar y manejo de slots de tabla.
+- **Arquitectura modular**:
+  - `components/forms.py` – SmartForm (formularios con grid).
+  - `components/table.py` – SmartTable (tablas con filtros, paginación, acciones).
+  - `config/global_styles.py` – Estilos globales y sidebar.
+  - `pages/` – Cada sección es un módulo independiente.
+  - `mock_data.py` – Generador de datos ficticios.
 
-### Diagrama del modelo relacional
-![imagen diagrama](./Docs/Entidad-Relacion.png)
-
-## 📝 Formularios del Sistema
+## 📝 Formularios del Sistema (interfaz)
 
 ### Clientes
-- Nombre
-- Correo
-- Teléfono
-- Dirección
+- NIT, nombre, correo, teléfono, dirección, fecha de registro.
 
 ### Robots
-- Nombre del robot
-- Categoría
-- Precio
-- Stock
-- Proveedor
+- Número de serie, nombre, descripción, tipo.
+
+### Proveedores
+- NIT, nombre empresa, persona de contacto, teléfono, correo.
+
+### Empleados
+- Documento de identidad, nombre completo, cargo, correo, teléfono.
+
+### Inventario
+- Código de barras, robot (select), proveedor (select), precio, stock, fecha de ingreso.
 
 ### Ventas
-- Cliente
-- Robot
-- Cantidad
-- Total
-- Empleado
+- Fecha de venta, cliente (select), empleado responsable.
+- Lista dinámica de productos (robot + cantidad) con cálculo de subtotal y total general.
 
 ### Soporte Técnico
-- Cliente
-- Robot
-- Problema reportado
-- Estado del caso
+- Fecha del reporte, cliente (select), robot (select), problema reportado.
 
-## 📌 Conclusiones
+## 📊 Reportes y Analítica
 
-La implementación de esta base de datos permitirá a **SmartBot Solutions** mejorar la organización y administración de su información empresarial.  
-Además, facilitará la gestión de inventario, ventas y soporte técnico mediante una estructura relacional eficiente, demostrando la aplicación práctica de conceptos fundamentales de diseño de bases de datos.
+- **Monitoreo en vivo**: tarjetas con ventas totales, clientes, stock, soportes abiertos + tabla de últimas ventas + bajo stock + soporte reciente (actualización cada 3s).
+- **Analítica**: robots más vendidos (con barra de participación), clientes con mayor facturación, estado del soporte técnico (tarjetas de conteo).
 
----
+## 🚀 Instalación y Ejecución
 
-📄 *Documentación del proyecto final - Diseño de Base de Datos*  
-👥 **Autores:** Juan José Ochoa Romero, Michael Yesid Baquero Gómez, Ingrid Liseth Roa Manrique  
-🏫 **Institución:** Fundación Universitaria Cafam - Unicafam  
-📅 **Fecha:** 09 de mayo de 2026
+1. Clonar el repositorio.
+2. Instalar dependencias:
+   ```bash
+   pip install nicegui pandas
+3. Ejecutar la aplicación:
+   ```bash
+   python main.py
+4. Abrir navegador en http://localhost:8080

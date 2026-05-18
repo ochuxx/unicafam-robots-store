@@ -11,6 +11,12 @@ from mock_data import clientes_mock
 # ──────────────────────────────────────────────────────────────────────
 
 def registrar_cliente_en_backend(datos: dict) -> dict:
+    """
+    Agrega un nuevo cliente a la base de datos mock (clientes_mock).
+
+    :param datos: Diccionario con las claves: nit, nombre, correo, telefono, direccion, fecha_registro.
+    :return: El diccionario del cliente recién creado.
+    """
     nuevo_cliente = {
         "nit":            datos["nit"],
         "nombre":         datos["nombre"],
@@ -24,6 +30,13 @@ def registrar_cliente_en_backend(datos: dict) -> dict:
 
 
 def actualizar_cliente_en_backend(nit_cliente: str, datos: dict) -> bool:
+    """
+    Actualiza los datos de un cliente existente en clientes_mock.
+
+    :param nit_cliente: NIT del cliente a actualizar.
+    :param datos: Diccionario con los campos a actualizar (nombre, correo, telefono, direccion).
+    :return: True si se encontró y actualizó, False en caso contrario.
+    """
     for i, cliente in enumerate(clientes_mock):
         if cliente["nit"] == nit_cliente:
             clientes_mock[i].update(datos)
@@ -32,6 +45,12 @@ def actualizar_cliente_en_backend(nit_cliente: str, datos: dict) -> bool:
 
 
 def eliminar_cliente_en_backend(nit_cliente: str) -> bool:
+    """
+    Elimina un cliente de clientes_mock por su NIT.
+
+    :param nit_cliente: NIT del cliente a eliminar.
+    :return: True si se eliminó al menos un cliente, False si no se encontró.
+    """
     global clientes_mock
     longitud_anterior = len(clientes_mock)
     clientes_mock[:] = [c for c in clientes_mock if c["nit"] != nit_cliente]
@@ -43,6 +62,16 @@ def eliminar_cliente_en_backend(nit_cliente: str) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 
 def page(content_container):
+    """
+    Renderiza la página de gestión de clientes en el contenedor proporcionado.
+
+    Incluye:
+    - Formulario de registro (SmartForm con 2 columnas).
+    - Tabla de clientes (SmartTable) con acciones editar/eliminar.
+    - Diálogos para edición y confirmación de eliminación.
+
+    :param content_container: Contenedor (ui.column) donde se montará la página.
+    """
     with content_container:
         ui.label("Gestión de Clientes").classes("page-title")
         ui.label("Registro y consulta de compradores").classes("page-subtitle").style(
@@ -99,7 +128,6 @@ def page(content_container):
             show_pagination=True,
             show_actions=True,
             action_buttons=acciones,
-            # _manejar_accion se define justo abajo con acceso a tabla_clientes
             on_action=lambda accion, fila: _manejar_accion(accion, fila, tabla_clientes),
             row_key="nit",
             max_height="500px",
@@ -113,7 +141,13 @@ def page(content_container):
 # ──────────────────────────────────────────────────────────────────────
 
 def _registrar_cliente(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """Valida el formulario, persiste el cliente y refresca la tabla."""
+    """
+    Callback del botón Guardar cliente. Valida el formulario, persiste el cliente
+    y refresca la tabla.
+
+    :param f: Instancia del SmartForm con los campos.
+    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
+    """
     if not f.nit.value or not f.nombre.value or not f.correo.value:
         ui.notify("NIT, Nombre y Correo son obligatorios", type="negative")
         return
@@ -149,8 +183,12 @@ def _registrar_cliente(f: SmartForm, tabla_ref: SmartTable) -> None:
 
 def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
     """
-    Despachador de acciones de la tabla.
-    Recibe la acción y la fila completa desde SmartTable._dispatch_action().
+    Despachador de acciones de la tabla. Recibe la acción y la fila completa
+    desde SmartTable._dispatch_action() y redirige a la función correspondiente.
+
+    :param accion: Nombre de la acción ('editar' o 'eliminar').
+    :param fila: Diccionario con los datos del cliente.
+    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
     """
     if accion == "editar":
         _abrir_dialogo_edicion(fila, tabla_ref)
@@ -159,7 +197,12 @@ def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
 
 
 def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
-    """Abre un diálogo modal con los datos del cliente para editarlos."""
+    """
+    Abre un diálogo modal con los datos del cliente para editarlos.
+
+    :param fila: Datos actuales del cliente.
+    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar cliente — {fila['nit']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -201,7 +244,12 @@ def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
 
 
 def _confirmar_eliminacion(fila: dict, tabla_ref: SmartTable) -> None:
-    """Abre un diálogo de confirmación antes de eliminar el cliente."""
+    """
+    Abre un diálogo de confirmación antes de eliminar el cliente.
+
+    :param fila: Datos del cliente a eliminar.
+    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
+    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar cliente").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"
