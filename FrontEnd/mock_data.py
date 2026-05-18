@@ -1,4 +1,4 @@
-# mock_data.py - 200 registros por tabla con duplicados en clientes
+# mock_data.py - 1000 registros por tabla con duplicados en clientes
 from datetime import datetime, timedelta
 import random
 
@@ -6,22 +6,27 @@ import random
 # 1. CLIENTES (NIT único pero con duplicados para pruebas)
 # =============================================
 clientes_mock = []
-nits_duplicados = [
-    "900000001-1", "900000001-1", "900000001-1",  # 3 registros mismo NIT
-    "900000002-2", "900000002-2",                # 2 registros
-    "900000003-3", "900000003-3", "900000003-3", # 3 registros
-    "900000004-4", "900000004-4",                # 2 registros
-    "900000005-5", "900000005-5", "900000005-5", # 3 registros
+
+# NITs duplicados (5 NITs base, cada uno repetido varias veces)
+nits_base_duplicados = [
+    "900000001-1", "900000002-2", "900000003-3", 
+    "900000004-4", "900000005-5"
 ]
-# Completar hasta 200 con NITs únicos
-nits_unicos = [f"900{i:06d}-{i%10}" for i in range(6, 201)]
+nits_duplicados = []
+for nit in nits_base_duplicados:
+    # Repetir cada NIT entre 10 y 20 veces para tener suficientes duplicados
+    repeticiones = random.randint(10, 20)
+    nits_duplicados.extend([nit] * repeticiones)
+
+# Completar hasta 1000 con NITs únicos
+nits_unicos = [f"900{i:06d}-{i%10}" for i in range(6, 1001 - len(nits_duplicados) + 6)]
 
 todos_nits = nits_duplicados + nits_unicos
 random.shuffle(todos_nits)
 
 for idx, nit in enumerate(todos_nits, start=1):
     clientes_mock.append({
-        "nit": nit,  # ← Único identificador
+        "nit": nit,
         "nombre": f"Cliente {idx}",
         "correo": f"cliente{idx}@mail.com",
         "telefono": f"300{random.randint(1000000, 9999999)}",
@@ -33,9 +38,9 @@ for idx, nit in enumerate(todos_nits, start=1):
 # 2. PROVEEDORES (NIT único)
 # =============================================
 proveedores_mock = []
-for i in range(1, 201):
+for i in range(1, 1001):
     proveedores_mock.append({
-        "nit": f"800{i:06d}-{i%10}",  # ← Único identificador
+        "nit": f"800{i:06d}-{i%10}",
         "nombre_empresa": f"Proveedor S.A.S. {i}",
         "contacto": f"Contacto {i}",
         "telefono": f"310{random.randint(1000000, 9999999)}",
@@ -47,9 +52,9 @@ for i in range(1, 201):
 # =============================================
 robots_mock = []
 tipos_robot = ["Hogar", "Industrial", "Educativo", "Médico", "Seguridad"]
-for i in range(1, 201):
+for i in range(1, 1001):
     robots_mock.append({
-        "id": f"SER-{i:03d}",  # SER-001 ... SER-200
+        "id": f"SER-{i:04d}",  # SER-0001 ... SER-1000
         "nombre": f"Robot Modelo {i}",
         "descripcion": f"Robot versión {i}.0 para {random.choice(tipos_robot)}",
         "tipo": random.choice(tipos_robot)
@@ -60,9 +65,9 @@ for i in range(1, 201):
 # =============================================
 empleados_mock = []
 cargos = ["Vendedor", "Técnico Soporte", "Gerente", "Almacenista", "Contador"]
-for i in range(1, 201):
+for i in range(1, 1001):
     empleados_mock.append({
-        "id": random.randint(1000, 9999), 
+        "id": random.randint(1000, 9999),
         "nombre": f"Empleado {i}",
         "cargo": random.choice(cargos),
         "correo": f"empleado{i}@smartbot.com",
@@ -73,29 +78,29 @@ for i in range(1, 201):
 # 5. INVENTARIO (Código de barras único)
 # =============================================
 inventario_mock = []
-for i in range(1, 201):
-    codigo_barras = f"1234567890{i:03d}"  # 1234567890001 ... 1234567890200
+for i in range(1, 1001):
+    codigo_barras = f"1234567890{i:04d}"  # 12345678900001 ... 12345678901000
     inventario_mock.append({
         "id": codigo_barras,
         "precio": random.randint(500000, 20000000),
         "stock": random.randint(1, 50),
-        "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "id_proveedor": proveedores_mock[i-1]["nit"],  # Relación con proveedor (NIT)
-        "id_robot": robots_mock[i-1]["id"]             # Relación con robot (número de serie)
+        "fecha_registro": datetime.now().strftime("%Y-%m-%d"),
+        "id_proveedor": proveedores_mock[i-1]["nit"],
+        "id_robot": robots_mock[i-1]["id"]
     })
 
 # =============================================
 # 6. VENTAS (ID autoincremental)
 # =============================================
 ventas_mock = []
-for i in range(1, 201):
+for i in range(1, 1001):
     cliente = random.choice(clientes_mock)
     empleado = random.choice(empleados_mock)
     ventas_mock.append({
         "id": i,
-        "fecha_venta": (datetime(2026, 1, 1) + timedelta(days=random.randint(0, 135))).strftime("%Y-%m-%d %H:%M:%S"),
-        "total": 0,  # Se calculará en detalle_venta
-        "id_cliente": cliente["nit"],      # ← Usa NIT del cliente
+        "fecha_venta": (datetime(2026, 1, 1) + timedelta(days=random.randint(0, 135))).strftime("%Y-%m-%d"),
+        "total": 0,
+        "id_cliente": cliente["nit"],
         "id_empleado": empleado["id"]
     })
 
@@ -123,19 +128,21 @@ for venta in ventas_mock:
     venta["total"] = total_venta
 
 # =============================================
-# 8. SOPORTE_TECNICO (ID autoincremental)
+# 8. SOPORTE_TECNICO (ID autoincremental) - CON FECHA_ACTUALIZACION
 # =============================================
 soporte_mock = []
 estados = ["Pendiente", "En proceso", "Resuelto", "Cancelado"]
-for i in range(1, 201):
+for i in range(1, 1001):
     cliente = random.choice(clientes_mock)
     robot = random.choice(robots_mock)
+    fecha_reporte = (datetime(2026, 1, 1) + timedelta(days=random.randint(0, 135))).strftime("%Y-%m-%d")
     soporte_mock.append({
         "id": i,
-        "fecha_reporte": (datetime(2026, 1, 1) + timedelta(days=random.randint(0, 135))).strftime("%Y-%m-%d %H:%M:%S"),
+        "fecha_reporte": fecha_reporte,
+        "fecha_actualizacion": fecha_reporte,  # <--- AÑADIDO para todos los tickets
         "problema": f"Falla reportada: {random.choice(['No enciende', 'Error de conexión', 'Batería baja', 'Sobrecalentamiento', 'Sensor dañado'])}",
         "estado": random.choice(estados),
-        "id_cliente": cliente["nit"],  # ← Usa NIT del cliente
+        "id_cliente": cliente["nit"],
         "id_robot": robot["id"]
     })
 

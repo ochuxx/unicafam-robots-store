@@ -23,22 +23,27 @@ def _siguiente_id() -> int:
 
 
 def registrar_ticket(datos: dict) -> dict:
+    """Registra un nuevo ticket con fecha de reporte (sin hora) y fecha de actualización inicial."""
+    fecha_hoy = datetime.now().strftime("%Y-%m-%d")  # Sin hora
     nuevo = {
-        "id":            _siguiente_id(),
-        "fecha_reporte": datos["fecha_reporte"],
-        "problema":      datos["problema"],
-        "estado":        "Abierto",
-        "id_cliente":    datos["id_cliente"],
-        "id_robot":      datos["id_robot"],
+        "id":                _siguiente_id(),
+        "fecha_reporte":     fecha_hoy,
+        "fecha_actualizacion": fecha_hoy,  # Se actualizará cuando se cambie el estado
+        "problema":          datos["problema"],
+        "estado":            "Abierto",
+        "id_cliente":        datos["id_cliente"],
+        "id_robot":          datos["id_robot"],
     }
     soporte_mock.append(nuevo)
     return nuevo
 
 
 def actualizar_estado(id_ticket: int, nuevo_estado: str) -> bool:
+    """Actualiza el estado y establece la fecha de actualización al día actual (sin hora)."""
     for ticket in soporte_mock:
         if ticket["id"] == id_ticket:
             ticket["estado"] = nuevo_estado
+            ticket["fecha_actualizacion"] = datetime.today().strftime("%Y-%m-%d")
             return True
     return False
 
@@ -64,16 +69,19 @@ def _nombre_robot(id_robot: str) -> str:
 
 
 def _construir_filas() -> list:
+    """Retorna las filas para la tabla mostrando la fecha de última actualización.
+    Si el ticket no tiene 'fecha_actualizacion', usa 'fecha_reporte' como valor inicial."""
     return [
         {
-            "id":            t["id"],
-            "fecha_reporte": t["fecha_reporte"],
-            "cliente":       _nombre_cliente(t["id_cliente"]),
-            "robot":         _nombre_robot(t["id_robot"]),
-            "problema":      t["problema"],
-            "estado":        t["estado"],
-            "_id_cliente":   t["id_cliente"],
-            "_id_robot":     t["id_robot"],
+            "id":                  t["id"],
+            # Si falta 'fecha_actualizacion', usa 'fecha_reporte' (o la fecha actual como fallback)
+            "fecha_actualizacion": t.get("fecha_actualizacion", t.get("fecha_reporte", datetime.today().strftime("%Y-%m-%d"))),
+            "cliente":             _nombre_cliente(t["id_cliente"]),
+            "robot":               _nombre_robot(t["id_robot"]),
+            "problema":            t["problema"],
+            "estado":              t["estado"],
+            "_id_cliente":         t["id_cliente"],
+            "_id_robot":           t["id_robot"],
         }
         for t in soporte_mock
     ]
@@ -103,14 +111,11 @@ def page(content_container):
         )
         form.build()
 
-        form.fecha    = form.add_field("date", "Fecha del reporte",
-                                       value=datetime.now().strftime("%Y-%m-%d"))
+        # Cambiar a solo fecha (sin hora)
+        form.fecha = form.add_field("date", "Fecha del reporte",
+                                    value=datetime.now().strftime("%Y-%m-%d"))
 
-        # ui.select con búsqueda habilitada mediante props de Quasar:
-        #   use-input      → activa el input de texto dentro del select
-        #   input-debounce → espera N ms antes de filtrar (evita lag con 200 opciones)
-        #   fill-input     → el texto escrito rellena visualmente el campo
-        #   hide-selected  → oculta la opción ya elegida del listado desplegado
+        # ui.select con búsqueda habilitada
         form.cliente = form.add_field("select", "Cliente", options=OPCIONES_CLIENTE)
         form.cliente.props("use-input input-debounce=300 fill-input hide-selected")
 
@@ -128,8 +133,8 @@ def page(content_container):
         )
 
         columnas = [
-            {"label": "ID",       "field": "id",            "width": "60px",  "filter_mode": "exact"},
-            {"label": "Fecha",    "field": "fecha_reporte", "width": "160px", "filter_mode": "startswith"},
+            {"label": "ID",       "field": "id",                  "width": "60px",  "filter_mode": "exact"},
+            {"label": "Última act.", "field": "fecha_actualizacion", "width": "160px", "filter_mode": "startswith"},
             {"label": "Cliente",  "field": "cliente",       "width": "200px", "filter_mode": "contains"},
             {"label": "Robot",    "field": "robot",         "width": "180px", "filter_mode": "contains"},
             {"label": "Problema", "field": "problema",      "width": "260px", "filter_mode": "contains"},
@@ -222,7 +227,8 @@ def _dialogo_cambiar_estado(fila: dict, tabla_ref: SmartTable) -> None:
                 ok = actualizar_estado(fila["id"], sel_estado.value)
                 if ok:
                     ui.notify(
-                        f"✅ Ticket #{fila['id']} → {sel_estado.value}",
+                        f"✅ Ticket #{fila['id']} → {sel_estado.value} "
+                        f"(actualizado: {datetime.today().strftime('%Y-%m-%d')})",
                         type="positive",
                     )
                     tabla_ref.set_data(_construir_filas())

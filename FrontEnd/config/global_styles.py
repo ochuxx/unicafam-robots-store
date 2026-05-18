@@ -226,11 +226,6 @@ def create_sidebar_layout(content_container, render_section):
             btn_consultas = ui.button('🔍 Consultas', on_click=lambda: navigate_to('consultas')).props('flat').classes('nav-btn')
             nav_buttons['consultas'] = btn_consultas
 
-            # Sección de pruebas
-            ui.html('<div class="nav-section">🧪 Pruebas</div>')
-            btn_prueba = ui.button('🧪 Área de Pruebas', on_click=lambda: navigate_to('prueba')).props('flat').classes('nav-btn')
-            nav_buttons['prueba'] = btn_prueba
-
         # Footer
         ui.html('''
         <div class="sidebar-footer">

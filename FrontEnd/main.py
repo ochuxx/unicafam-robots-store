@@ -24,7 +24,6 @@ SECCIONES = {
     'soporte': '06_soporte',
     'consultas': '07_consultas',
     'inventario': '08_inventario',
-    'prueba': '99_prueba',
 }
 
 def cargar_pagina(section_name: str):
