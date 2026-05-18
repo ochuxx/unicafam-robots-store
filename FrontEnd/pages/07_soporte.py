@@ -34,10 +34,6 @@ def actualizar_estado(id_ticket: int, nuevo_estado: str) -> bool:
             return True
     return False
 
-def eliminar_ticket(id_ticket: int) -> bool:
-    longitud_anterior = len(soporte_mock)
-    soporte_mock[:] = [t for t in soporte_mock if t["id"] != id_ticket]
-    return len(soporte_mock) < longitud_anterior
 
 def _nombre_cliente(nit: str) -> str:
     c = next((c for c in clientes_mock if c["nit"] == nit), None)
@@ -95,7 +91,6 @@ def page(content_container):
         ]
         acciones = {
             "cambiar_estado": {"icon": "sync", "color": "teal", "tooltip": "Cambiar estado"},
-            "eliminar": {"icon": "delete", "color": "red", "tooltip": "Eliminar ticket"},
         }
         tabla = SmartTable(
             columns=columnas,
@@ -133,8 +128,6 @@ def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
 def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
     if accion == "cambiar_estado":
         _dialogo_cambiar_estado(fila, tabla_ref)
-    elif accion == "eliminar":
-        _dialogo_eliminar(fila, tabla_ref)
 
 def _dialogo_cambiar_estado(fila: dict, tabla_ref: SmartTable) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 420px; padding: 24px;"):
@@ -156,21 +149,4 @@ def _dialogo_cambiar_estado(fila: dict, tabla_ref: SmartTable) -> None:
                 else:
                     ui.notify("No se encontró el ticket", type="negative")
             ui.button("Guardar cambio", on_click=guardar).props("unelevated color=teal")
-    dialogo.open()
-
-def _dialogo_eliminar(fila: dict, tabla_ref: SmartTable) -> None:
-    with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
-        ui.label("Eliminar ticket").classes("text-h6").style("color: #F44336; margin-bottom: 8px;")
-        ui.label(f"¿Deseas eliminar el ticket #{fila['id']} de {fila['cliente']}? Esta acción no se puede deshacer.").style("color: var(--text-main); margin-bottom: 16px;")
-        with ui.row().classes("gap-2 justify-end"):
-            ui.button("Cancelar", on_click=dialogo.close).props("flat")
-            def confirmar():
-                ok = eliminar_ticket(fila["id"])
-                if ok:
-                    ui.notify(f"Ticket #{fila['id']} eliminado", type="positive")
-                    tabla_ref.set_data(_construir_filas())
-                    dialogo.close()
-                else:
-                    ui.notify("No se encontró el ticket", type="negative")
-            ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
     dialogo.open()
