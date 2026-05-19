@@ -1,15 +1,39 @@
-# FrontEnd/pages/05_inventario.py
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import robots_mock, proveedores_mock, inventario_mock
 from datetime import datetime
+import re
 
+# ──────────────────────────────────────────────────────────────────────
+# Funciones auxiliares y validaciones
+# ──────────────────────────────────────────────────────────────────────
 _ROBOTS_POR_ID = {r["id"]: r for r in robots_mock}
 _PROVS_POR_NIT = {p["nit"]: p for p in proveedores_mock}
 
 OPCIONES_ROBOT = [f"{r['id']} - {r['nombre']}" for r in robots_mock]
 OPCIONES_PROV = [f"{p['nit']} - {p['nombre_empresa']}" for p in proveedores_mock]
+
+def solo_digitos_codigo(valor):
+    if not valor:
+        return True
+    if not re.match(r'^\d+$', valor):
+        return "El código de barras solo puede contener números"
+    return True
+
+def validar_seleccion_robot(valor):
+    if not valor:
+        return True
+    if valor not in OPCIONES_ROBOT:
+        return "Seleccione un robot válido de la lista"
+    return True
+
+def validar_seleccion_proveedor(valor):
+    if not valor:
+        return True
+    if valor not in OPCIONES_PROV:
+        return "Seleccione un proveedor válido de la lista"
+    return True
 
 def _nombre_robot(id_robot: str) -> str:
     r = _ROBOTS_POR_ID.get(id_robot)
@@ -54,10 +78,14 @@ def _actualizar_en_backend(codigo: str, datos: dict) -> bool:
     return False
 
 def _eliminar_en_backend(codigo: str) -> bool:
+    global inventario_mock
     longitud_anterior = len(inventario_mock)
     inventario_mock[:] = [i for i in inventario_mock if i["id"] != codigo]
     return len(inventario_mock) < longitud_anterior
 
+# ──────────────────────────────────────────────────────────────────────
+# Página principal
+# ──────────────────────────────────────────────────────────────────────
 def page(content_container):
     with content_container:
         ui.label("Gestión de Inventario").classes("page-title")
@@ -74,17 +102,66 @@ def page(content_container):
             padding="20px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar(form, tabla_inventario),
             submit_text="Registrar inventario",
+            enable_validation=True,
+            max_length=100,
         )
         form.build()
 
-        form.codigo = form.add_field("input", "Código de barras", placeholder="Ej: 7501234567890")
-        form.robot = form.add_field("select", "Robot", options=OPCIONES_ROBOT)
+        # Código de barras
+        form.codigo = form.add_field(
+            "input", "Código de barras",
+            placeholder="7501234567890",
+            required=True,
+            max_length=20,
+            validation=solo_digitos_codigo
+        )
+        form.codigo.props('inputmode=numeric')
+
+        # Robot (con validación de selección)
+        form.robot = form.add_field(
+            "select", "Robot",
+            options=OPCIONES_ROBOT,
+            required=True,
+            validation=validar_seleccion_robot
+        )
         form.robot.props("use-input input-debounce=300 fill-input hide-selected")
-        form.proveedor = form.add_field("select", "Proveedor", options=OPCIONES_PROV)
+        form.robot.props('input-maxlength=50')   # limitador de texto en búsqueda
+
+        # Proveedor (con validación de selección)
+        form.proveedor = form.add_field(
+            "select", "Proveedor",
+            options=OPCIONES_PROV,
+            required=True,
+            validation=validar_seleccion_proveedor
+        )
         form.proveedor.props("use-input input-debounce=300 fill-input hide-selected")
-        form.precio = form.add_field("number", "Precio de venta (COP)", placeholder="0", value=0)
-        form.stock = form.add_field("number", "Cantidad en stock", placeholder="0", value=0)
-        form.fecha = form.add_field("date", "Fecha de ingreso", value=datetime.now().strftime("%Y-%m-%d"))
+        form.proveedor.props('input-maxlength=50')
+
+        # Precio
+        form.precio = form.add_field(
+            "number", "Precio de venta (COP)",
+            placeholder="0",
+            value=0,
+            required=True,
+            validation={'min': 1}
+        )
+
+        # Stock (entero)
+        form.stock = form.add_field(
+            "number", "Cantidad en stock",
+            placeholder="0",
+            value=0,
+            required=True,
+            integer_only=True,
+            validation={'min': 1}
+        )
+
+        # Fecha
+        form.fecha = form.add_field(
+            "date", "Fecha de ingreso",
+            value=datetime.now().strftime("%Y-%m-%d"),
+            required=True
+        )
 
         ui.separator().classes("my-6")
 
@@ -120,29 +197,24 @@ def page(content_container):
         )
         tabla_inventario.build()
 
+# ──────────────────────────────────────────────────────────────────────
+# Callbacks internos
+# ──────────────────────────────────────────────────────────────────────
 def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
-    if not f.codigo.value:
-        ui.notify("El código de barras es obligatorio", type="negative")
-        return
-    if not f.robot.value or not f.proveedor.value:
-        ui.notify("Debe seleccionar robot y proveedor", type="negative")
-        return
-    if not f.precio.value or f.precio.value <= 0:
-        ui.notify("El precio debe ser mayor a cero", type="negative")
-        return
-    if not f.stock.value or f.stock.value <= 0:
-        ui.notify("El stock debe ser mayor a cero", type="negative")
+    if not f.is_valid():
+        ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
     id_robot = f.robot.value.split(" - ")[0].strip()
     nit_proveedor = f.proveedor.value.split(" - ")[0].strip()
+    codigo = f.codigo.value.strip()
 
-    if any(i["id"] == f.codigo.value.strip() for i in inventario_mock):
-        ui.notify(f"Ya existe un item con código {f.codigo.value}", type="warning")
+    if any(i["id"] == codigo for i in inventario_mock):
+        ui.notify(f"Ya existe un item con código {codigo}", type="warning")
         return
 
     nuevo = _registrar_en_backend({
-        "codigo": f.codigo.value.strip(),
+        "codigo": codigo,
         "id_robot": id_robot,
         "id_proveedor": nit_proveedor,
         "precio": f.precio.value,
@@ -151,7 +223,7 @@ def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
     })
 
     ui.notify(
-        f"Inventario registrado: {_nombre_robot(nuevo['id_robot'])} — Stock: {nuevo['stock']}",
+        f"✅ Inventario registrado: {_nombre_robot(nuevo['id_robot'])} — Stock: {nuevo['stock']}",
         type="positive",
     )
 
@@ -161,6 +233,7 @@ def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
     f.precio.value = 0
     f.stock.value = 0
     f.fecha.value = datetime.now().strftime("%Y-%m-%d")
+    f.clear_errors()
 
     tabla_ref.set_data(_construir_filas())
 
@@ -179,7 +252,7 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
         ui.label(f"Fecha ingreso: {fila['fecha_ingreso']}").classes("text-caption mb-4")
 
         precio_actual = int(fila["precio"].replace(".", "")) if isinstance(fila["precio"], str) else fila["precio"]
-        inp_precio = ui.number("Precio (COP)", value=precio_actual, min=0, step=1000).classes("w-full")
+        inp_precio = ui.number("Precio (COP)", value=precio_actual, min=1, step=1000).classes("w-full")
         inp_stock = ui.number("Stock", value=fila["stock"], min=0, step=1).classes("w-full")
 
         nit_actual = fila.get("_id_proveedor", "")
@@ -193,6 +266,7 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
             value=prov_actual,
         ).classes("w-full")
         inp_proveedor.props("use-input input-debounce=300 fill-input hide-selected")
+        inp_proveedor.props('input-maxlength=50')
 
         with ui.row().classes("gap-2 mt-4 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
@@ -207,6 +281,9 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
                 if not inp_proveedor.value:
                     ui.notify("Selecciona un proveedor", type="negative")
                     return
+                if inp_proveedor.value not in OPCIONES_PROV:
+                    ui.notify("Seleccione un proveedor válido de la lista", type="negative")
+                    return
 
                 nit_nuevo = inp_proveedor.value.split(" - ")[0].strip()
                 ok = _actualizar_en_backend(fila["codigo"], {
@@ -215,7 +292,7 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
                     "id_proveedor": nit_nuevo,
                 })
                 if ok:
-                    ui.notify(f"Inventario {fila['codigo']} actualizado", type="positive")
+                    ui.notify(f"✅ Inventario {fila['codigo']} actualizado", type="positive")
                     tabla_ref.set_data(_construir_filas())
                     dialogo.close()
                 else:
@@ -240,7 +317,7 @@ def _dialogo_eliminar(fila: dict, tabla_ref: SmartTable) -> None:
             def confirmar():
                 ok = _eliminar_en_backend(fila["codigo"])
                 if ok:
-                    ui.notify(f"Item {fila['codigo']} eliminado", type="positive")
+                    ui.notify(f"🗑️ Item {fila['codigo']} eliminado", type="positive")
                     tabla_ref.set_data(_construir_filas())
                     dialogo.close()
                 else:

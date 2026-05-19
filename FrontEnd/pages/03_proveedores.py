@@ -1,20 +1,24 @@
-# FrontEnd/pages/03_proveedores.py
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import proveedores_mock
+import re
+
+# ──────────────────────────────────────────────────────────────────────
+# Función de validación personalizada para el NIT (solo dígitos)
+# ──────────────────────────────────────────────────────────────────────
+def solo_digitos_nit(valor):
+    """Valida que el NIT contenga solo dígitos (sin guiones, puntos ni espacios)."""
+    if not valor:
+        return True
+    if not re.match(r'^\d+$', valor):
+        return "El NIT solo puede contener números (sin puntos, guiones ni espacios)"
+    return True
 
 # ──────────────────────────────────────────────────────────────────────
 # Operaciones de backend (mock)
 # ──────────────────────────────────────────────────────────────────────
-
 def registrar_proveedor_en_backend(datos: dict) -> dict:
-    """
-    Agrega un nuevo proveedor a la base de datos mock (proveedores_mock).
-
-    :param datos: Diccionario con las claves: nit, nombre_empresa, contacto, telefono, correo.
-    :return: El diccionario del proveedor recién creado.
-    """
     nuevo_proveedor = {
         "nit":            datos["nit"],
         "nombre_empresa": datos["nombre_empresa"],
@@ -25,79 +29,81 @@ def registrar_proveedor_en_backend(datos: dict) -> dict:
     proveedores_mock.append(nuevo_proveedor)
     return nuevo_proveedor
 
-
 def actualizar_proveedor_en_backend(nit_proveedor: str, datos: dict) -> bool:
-    """
-    Actualiza los datos de un proveedor existente en proveedores_mock.
-
-    :param nit_proveedor: NIT del proveedor a actualizar.
-    :param datos: Diccionario con los campos a actualizar (nombre_empresa, contacto, telefono, correo).
-    :return: True si se encontró y actualizó, False en caso contrario.
-    """
     for i, prov in enumerate(proveedores_mock):
         if prov["nit"] == nit_proveedor:
             proveedores_mock[i].update(datos)
             return True
     return False
 
-
 def eliminar_proveedor_en_backend(nit_proveedor: str) -> bool:
-    """
-    Elimina un proveedor de proveedores_mock por su NIT.
-
-    :param nit_proveedor: NIT del proveedor a eliminar.
-    :return: True si se eliminó al menos un proveedor, False si no se encontró.
-    """
     global proveedores_mock
     longitud_anterior = len(proveedores_mock)
     proveedores_mock[:] = [p for p in proveedores_mock if p["nit"] != nit_proveedor]
     return len(proveedores_mock) < longitud_anterior
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Página principal
 # ──────────────────────────────────────────────────────────────────────
-
 def page(content_container):
-    """
-    Renderiza la página de gestión de proveedores en el contenedor proporcionado.
-
-    Incluye:
-    - Formulario de registro (SmartForm con 2 columnas).
-    - Tabla de proveedores (SmartTable) con acciones editar/eliminar.
-    - Diálogos para edición y confirmación de eliminación.
-
-    :param content_container: Contenedor (ui.column) donde se montará la página.
-    """
     with content_container:
         ui.label("Gestión de Proveedores").classes("page-title")
         ui.label("Registro de empresas proveedoras de robots").classes("page-subtitle").style(
             "margin-bottom: 24px;"
         )
 
-        # ── Formulario de registro ───────────────────────────────────
         ui.label("Registrar nuevo proveedor").classes("text-h6").style(
             "color: var(--teal-light);"
         )
 
+        # Formulario con validación manual
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar_proveedor(form, tabla_proveedores),
             submit_text="Guardar proveedor",
+            enable_validation=True,
+            max_length=100,   # límite global para textos
         )
         form.build()
 
-        # Campos del formulario
-        form.nit           = form.add_field("input", "NIT", placeholder="Ej: 900123456-7", required=True)
-        form.nombre_empresa= form.add_field("input", "Nombre empresa", placeholder="Ej: RoboTech S.A.S")
-        form.contacto      = form.add_field("input", "Persona de contacto", placeholder="Nombre del representante")
-        form.telefono      = form.add_field("input", "Teléfono", placeholder="300 000 0000")
-        form.correo        = form.add_field("email", "Correo electrónico", placeholder="contacto@empresa.com")
+        # Campos del formulario con validaciones
+        form.nit = form.add_field(
+            "input", "NIT",
+            placeholder="900123456",
+            required=True,
+            max_length=15,
+            validation=solo_digitos_nit
+        )
+        form.nit.props('inputmode=numeric')   # teclado numérico en móviles
+
+        form.nombre_empresa = form.add_field(
+            "input", "Nombre empresa",
+            placeholder="Ej: RoboTech S.A.S",
+            required=True,
+            max_length=80
+        )
+
+        form.contacto = form.add_field(
+            "input", "Persona de contacto",
+            placeholder="Nombre del representante",
+            max_length=40
+        )
+
+        form.telefono = form.add_field(
+            "input", "Teléfono",
+            placeholder="300 000 0000",
+            max_length=20
+        )
+
+        form.correo = form.add_field(
+            "email", "Correo electrónico",
+            placeholder="contacto@empresa.com",
+            max_length=80
+        )
 
         ui.separator().classes("my-6")
 
-        # ── Tabla de proveedores ─────────────────────────────────────
         ui.label("Listado de proveedores").classes("text-h6").style(
             "color: var(--teal-light);"
         )
@@ -131,34 +137,25 @@ def page(content_container):
         )
         tabla_proveedores.build()
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Callbacks internos
 # ──────────────────────────────────────────────────────────────────────
-
 def _registrar_proveedor(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """
-    Callback del botón Guardar proveedor. Valida el formulario, persiste el proveedor
-    y refresca la tabla.
-
-    :param f: Instancia del SmartForm con los campos.
-    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
-    """
-    if not f.nit.value or not f.nombre_empresa.value:
-        ui.notify("NIT y nombre de empresa son obligatorios", type="negative")
+    # Validar todos los campos del formulario
+    if not f.is_valid():
+        ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
     datos = {
-        "nit":           f.nit.value.strip(),
+        "nit":            f.nit.value.strip(),
         "nombre_empresa": f.nombre_empresa.value.strip(),
-        "contacto":      (f.contacto.value or "").strip(),
-        "telefono":      (f.telefono.value or "").strip(),
-        "correo":        (f.correo.value or "").strip(),
+        "contacto":       (f.contacto.value or "").strip(),
+        "telefono":       (f.telefono.value or "").strip(),
+        "correo":         (f.correo.value or "").strip(),
     }
 
-    # Verificar NIT duplicado
-    nits_existentes = {p["nit"] for p in proveedores_mock}
-    if datos["nit"] in nits_existentes:
+    # Validación de negocio: NIT duplicado
+    if any(p["nit"] == datos["nit"] for p in proveedores_mock):
         ui.notify(f"Ya existe un proveedor con NIT {datos['nit']}", type="warning")
         return
 
@@ -174,31 +171,17 @@ def _registrar_proveedor(f: SmartForm, tabla_ref: SmartTable) -> None:
     f.contacto.value = ""
     f.telefono.value = ""
     f.correo.value = ""
+    f.clear_errors()
 
     tabla_ref.set_data(proveedores_mock)
 
-
 def _manejar_accion_proveedor(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Despachador de acciones de la tabla de proveedores.
-
-    :param accion: Nombre de la acción ('editar' o 'eliminar').
-    :param fila: Diccionario con los datos del proveedor.
-    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
-    """
     if accion == "editar":
         _abrir_dialogo_edicion_proveedor(fila, tabla_ref)
     elif accion == "eliminar":
         _confirmar_eliminacion_proveedor(fila, tabla_ref)
 
-
 def _abrir_dialogo_edicion_proveedor(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo modal con los datos del proveedor para editarlos.
-
-    :param fila: Datos actuales del proveedor.
-    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar proveedor — {fila['nit']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -238,14 +221,7 @@ def _abrir_dialogo_edicion_proveedor(fila: dict, tabla_ref: SmartTable) -> None:
 
     dialogo.open()
 
-
 def _confirmar_eliminacion_proveedor(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo de confirmación antes de eliminar el proveedor.
-
-    :param fila: Datos del proveedor a eliminar.
-    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar proveedor").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"

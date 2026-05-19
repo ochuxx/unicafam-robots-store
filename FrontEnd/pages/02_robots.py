@@ -1,21 +1,26 @@
-# FrontEnd/pages/02_robots.py
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import robots_mock
+import re
 
+# ──────────────────────────────────────────────────────────────────────
+# Función de validación personalizada para el número de serie (único + formato)
+# ──────────────────────────────────────────────────────────────────────
+def validar_serie_robot(valor):
+    """Valida que el número de serie no esté vacío y tenga un formato básico."""
+    if not valor:
+        return True  # El required se encarga
+    # Ejemplo: permite letras, números, guiones y guiones bajos (mínimo 3 caracteres)
+    if not re.match(r'^[A-Za-z0-9\-_]{3,20}$', valor):
+        return "El número de serie debe tener entre 3 y 20 caracteres (letras, números, guiones o guión bajo)"
+    # La unicidad se verificará aparte en el callback (no se puede validar aquí porque depende de la BD)
+    return True
 
 # ──────────────────────────────────────────────────────────────────────
 # Operaciones de backend (mock)
 # ──────────────────────────────────────────────────────────────────────
-
 def registrar_robot_en_backend(datos: dict) -> dict:
-    """
-    Agrega un nuevo robot a la base de datos mock (robots_mock).
-
-    :param datos: Diccionario con las claves: id, nombre, descripcion, tipo.
-    :return: El diccionario del robot recién creado.
-    """
     nuevo_robot = {
         "id":          datos["id"],
         "nombre":      datos["nombre"],
@@ -25,83 +30,79 @@ def registrar_robot_en_backend(datos: dict) -> dict:
     robots_mock.append(nuevo_robot)
     return nuevo_robot
 
-
 def actualizar_robot_en_backend(id_robot: str, datos: dict) -> bool:
-    """
-    Actualiza los datos de un robot existente en robots_mock.
-
-    :param id_robot: Número de serie (id) del robot a actualizar.
-    :param datos: Diccionario con los campos a actualizar (nombre, descripcion, tipo).
-    :return: True si se encontró y actualizó, False en caso contrario.
-    """
     for i, robot in enumerate(robots_mock):
         if robot["id"] == id_robot:
             robots_mock[i].update(datos)
             return True
     return False
 
-
 def eliminar_robot_en_backend(id_robot: str) -> bool:
-    """
-    Elimina un robot de robots_mock por su número de serie.
-
-    :param id_robot: Número de serie (id) del robot a eliminar.
-    :return: True si se eliminó al menos un robot, False si no se encontró.
-    """
     global robots_mock
     longitud_anterior = len(robots_mock)
     robots_mock[:] = [r for r in robots_mock if r["id"] != id_robot]
     return len(robots_mock) < longitud_anterior
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Página principal
 # ──────────────────────────────────────────────────────────────────────
-
 TIPOS_ROBOT = ["Doméstico", "Industrial", "Educativo", "Médico", "Comercial", "Seguridad", "Hogar"]
 
-
 def page(content_container):
-    """
-    Renderiza la página de gestión de robots en el contenedor proporcionado.
-
-    Incluye:
-    - Formulario de registro (SmartForm con 2 columnas).
-    - Tabla de robots (SmartTable) con acciones editar/eliminar.
-    - Diálogos para edición y confirmación de eliminación.
-
-    :param content_container: Contenedor (ui.column) donde se montará la página.
-    """
     with content_container:
         ui.label("Gestión de Robots").classes("page-title")
-        ui.label("Registro y catálogo de robots").classes("page-subtitle").style(
-            "margin-bottom: 24px;"
-        )
+        ui.label("Registro y catálogo de robots").classes("page-subtitle").style("margin-bottom: 24px;")
 
-        # ── Formulario de registro ───────────────────────────────────
-        ui.label("Registrar nuevo robot").classes("text-h6").style(
-            "color: var(--teal-light);"
-        )
+        ui.label("Registrar nuevo robot").classes("text-h6").style("color: var(--teal-light);")
 
+        # Formulario con validación manual
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar_robot(form, tabla_robots),
             submit_text="Guardar robot",
+            enable_validation=True,
+            max_length=100,   # límite global para textos
         )
         form.build()
 
-        form.id_robot    = form.add_field("input",    "Número de serie",  placeholder="Ej: RB-2024-001")
-        form.nombre      = form.add_field("input",    "Nombre del robot", placeholder="Ej: HomeBot X2")
-        form.descripcion = form.add_field("textarea", "Descripción",      rows=3, placeholder="Funcionalidades y características")
-        form.tipo        = form.add_field("select",   "Tipo",             options=TIPOS_ROBOT)
+        # Campo: número de serie (ID único)
+        form.id_robot = form.add_field(
+            "input", "Número de serie",
+            placeholder="Ej: RB-2024-001",
+            required=True,
+            max_length=20,
+            validation=validar_serie_robot
+        )
+        # Opcional: teclado en móviles (no necesario, pero se puede dejar)
+        form.id_robot.props('inputmode=text')
+
+        # Campo: nombre del robot
+        form.nombre = form.add_field(
+            "input", "Nombre del robot",
+            placeholder="Ej: HomeBot X2",
+            required=True,
+            max_length=30
+        )
+
+        # Campo: descripción (textarea)
+        form.descripcion = form.add_field(
+            "textarea", "Descripción",
+            rows=3,
+            placeholder="Funcionalidades y características",
+            max_length=300   # Límite específico para descripción larga
+        )
+
+        # Campo: tipo (select)
+        form.tipo = form.add_field(
+            "select", "Tipo",
+            options=TIPOS_ROBOT,
+            required=True
+        )
 
         ui.separator().classes("my-6")
 
-        # ── Tabla de robots ──────────────────────────────────────────
-        ui.label("Listado de robots").classes("text-h6").style(
-            "color: var(--teal-light);"
-        )
+        ui.label("Listado de robots").classes("text-h6").style("color: var(--teal-light);")
 
         columnas_robots = [
             {"label": "Número de serie", "field": "id",          "width": "150px", "filter_mode": "exact"},
@@ -131,23 +132,16 @@ def page(content_container):
         )
         tabla_robots.build()
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Callbacks internos
 # ──────────────────────────────────────────────────────────────────────
-
 def _registrar_robot(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """
-    Callback del botón Guardar robot. Valida el formulario, persiste el robot
-    y refresca la tabla.
-
-    :param f: Instancia del SmartForm con los campos.
-    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
-    """
-    if not f.id_robot.value or not f.nombre.value or not f.tipo.value:
-        ui.notify("Número de serie, nombre y tipo son obligatorios", type="negative")
+    # Validar todos los campos (requerido, formato, longitud)
+    if not f.is_valid():
+        ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
+    # Recolectar datos
     datos = {
         "id":          f.id_robot.value.strip(),
         "nombre":      f.nombre.value.strip(),
@@ -155,41 +149,30 @@ def _registrar_robot(f: SmartForm, tabla_ref: SmartTable) -> None:
         "tipo":        f.tipo.value,
     }
 
-    ids_existentes = {r["id"] for r in robots_mock}
-    if datos["id"] in ids_existentes:
+    # Validación de negocio: número de serie único
+    if any(r["id"] == datos["id"] for r in robots_mock):
         ui.notify(f"Ya existe un robot con número de serie {datos['id']}", type="warning")
         return
 
     nuevo = registrar_robot_en_backend(datos)
     ui.notify(f"✅ Robot {nuevo['nombre']} registrado (Serie {nuevo['id']})", type="positive")
 
-    f.id_robot.value = f.nombre.value = f.descripcion.value = ""
-    f.tipo.value = None
+    # Limpiar formulario
+    f.id_robot.value = ""
+    f.nombre.value = ""
+    f.descripcion.value = ""
+    f.tipo.value = None          # Para select
+    f.clear_errors()
 
     tabla_ref.set_data(robots_mock)
 
-
 def _manejar_accion_robot(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Despachador de acciones de la tabla de robots.
-
-    :param accion: Nombre de la acción ('editar' o 'eliminar').
-    :param fila: Diccionario con los datos del robot.
-    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
-    """
     if accion == "editar":
         _abrir_dialogo_edicion_robot(fila, tabla_ref)
     elif accion == "eliminar":
         _confirmar_eliminacion_robot(fila, tabla_ref)
 
-
 def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo modal con los datos del robot para editarlos.
-
-    :param fila: Datos actuales del robot.
-    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar robot — {fila['id']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -197,17 +180,10 @@ def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
 
         inp_nombre      = ui.input("Nombre del robot", value=fila.get("nombre", "")).classes("w-full")
         inp_descripcion = ui.textarea("Descripción",   value=fila.get("descripcion", "")).classes("w-full")
-
-        # ✅ CORRECTO: options y label como keywords, nunca dos posicionales
-        inp_tipo = ui.select(
-            options=TIPOS_ROBOT,
-            label="Tipo",
-            value=fila.get("tipo", ""),
-        ).classes("w-full")
+        inp_tipo        = ui.select(options=TIPOS_ROBOT, label="Tipo", value=fila.get("tipo", "")).classes("w-full")
 
         with ui.row().classes("gap-2 mt-4 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
-
             def guardar():
                 if not inp_nombre.value or not inp_tipo.value:
                     ui.notify("Nombre y Tipo son obligatorios", type="negative")
@@ -224,31 +200,18 @@ def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
                     dialogo.close()
                 else:
                     ui.notify("No se encontró el robot para actualizar", type="negative")
-
             ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
-
     dialogo.open()
 
-
 def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo de confirmación antes de eliminar el robot.
-
-    :param fila: Datos del robot a eliminar.
-    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
-        ui.label("Eliminar robot").classes("text-h6").style(
-            "color: #F44336; margin-bottom: 8px;"
-        )
+        ui.label("Eliminar robot").classes("text-h6").style("color: #F44336; margin-bottom: 8px;")
         ui.label(
             f"¿Estás seguro de que deseas eliminar el robot '{fila['nombre']}' "
             f"(Serie {fila['id']})? Esta acción no se puede deshacer."
         ).style("color: var(--text-main); margin-bottom: 16px;")
-
         with ui.row().classes("gap-2 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
-
             def confirmar():
                 ok = eliminar_robot_en_backend(fila["id"])
                 if ok:
@@ -257,7 +220,5 @@ def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable) -> None:
                     dialogo.close()
                 else:
                     ui.notify("No se encontró el robot para eliminar", type="negative")
-
             ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
-
     dialogo.open()

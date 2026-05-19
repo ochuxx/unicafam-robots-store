@@ -140,7 +140,17 @@ def apply_global_styles():
       }
       .page-title { font-size: 1.6rem; font-weight: 800; color: var(--teal-light); margin: 0; }
       .page-subtitle { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
-    </style>
+      
+      /* Ocultar las flechas (spinners) de los campos numéricos */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+      }
+      input[type="number"] {
+          -moz-appearance: textfield;
+      }
+          </style>
     """, shared=True)
 
     ui.add_body_html("""

@@ -1,14 +1,43 @@
-# FrontEnd/pages/07_soporte.py
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import clientes_mock, robots_mock, soporte_mock
 from datetime import datetime
+import re
 
 ESTADOS_TICKET = ["Abierto", "En progreso", "Resuelto", "Cerrado"]
 OPCIONES_CLIENTE = [f"{c['nit']} - {c['nombre']}" for c in clientes_mock]
 OPCIONES_ROBOT = [f"{r['id']} - {r['nombre']}" for r in robots_mock]
 
+# ----------------------------------------------------------------------
+# Funciones de validación personalizada
+# ----------------------------------------------------------------------
+def validar_seleccion_cliente(valor):
+    if not valor:
+        return True
+    if valor not in OPCIONES_CLIENTE:
+        return "Seleccione un cliente válido de la lista"
+    return True
+
+def validar_seleccion_robot(valor):
+    if not valor:
+        return True
+    if valor not in OPCIONES_ROBOT:
+        return "Seleccione un robot válido de la lista"
+    return True
+
+def validar_problema(valor):
+    if not valor:
+        return True
+    if len(valor.strip()) < 5:
+        return "El problema debe tener al menos 5 caracteres"
+    if len(valor) > 300:
+        return "El problema no puede exceder 300 caracteres"
+    return True
+
+# ----------------------------------------------------------------------
+# Funciones auxiliares
+# ----------------------------------------------------------------------
 def _siguiente_id() -> int:
     return max((t["id"] for t in soporte_mock), default=0) + 1
 
@@ -34,7 +63,6 @@ def actualizar_estado(id_ticket: int, nuevo_estado: str) -> bool:
             return True
     return False
 
-
 def _nombre_cliente(nit: str) -> str:
     c = next((c for c in clientes_mock if c["nit"] == nit), None)
     return f"{nit} - {c['nombre']}" if c else nit
@@ -58,6 +86,9 @@ def _construir_filas() -> list:
         for t in soporte_mock
     ]
 
+# ----------------------------------------------------------------------
+# Página principal
+# ----------------------------------------------------------------------
 def page(content_container):
     with content_container:
         ui.label("Gestión de Soporte Técnico").classes("page-title")
@@ -69,14 +100,47 @@ def page(content_container):
             padding="16px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar(form, tabla),
             submit_text="Registrar solicitud",
+            enable_validation=True,
+            max_length=100,
         )
         form.build()
-        form.fecha = form.add_field("date", "Fecha del reporte", value=datetime.now().strftime("%Y-%m-%d"))
-        form.cliente = form.add_field("select", "Cliente", options=OPCIONES_CLIENTE)
+
+        # Fecha (obligatoria)
+        form.fecha = form.add_field(
+            "date", "Fecha del reporte",
+            value=datetime.now().strftime("%Y-%m-%d"),
+            required=True
+        )
+
+        # Cliente (obligatorio, validación de selección)
+        form.cliente = form.add_field(
+            "select", "Cliente",
+            options=OPCIONES_CLIENTE,
+            required=True,
+            validation=validar_seleccion_cliente
+        )
         form.cliente.props("use-input input-debounce=300 fill-input hide-selected")
-        form.robot = form.add_field("select", "Robot", options=OPCIONES_ROBOT)
+        form.cliente.props('input-maxlength=80')
+
+        # Robot (obligatorio, validación de selección)
+        form.robot = form.add_field(
+            "select", "Robot",
+            options=OPCIONES_ROBOT,
+            required=True,
+            validation=validar_seleccion_robot
+        )
         form.robot.props("use-input input-debounce=300 fill-input hide-selected")
-        form.problema = form.add_field("textarea", "Problema reportado", rows=4, placeholder="Describa la falla o inconveniente...")
+        form.robot.props('input-maxlength=80')
+
+        # Problema (textarea obligatorio con validación de longitud)
+        form.problema = form.add_field(
+            "textarea", "Problema reportado",
+            rows=4,
+            placeholder="Describa la falla o inconveniente...",
+            required=True,
+            max_length=300,
+            validation=validar_problema
+        )
 
         ui.separator().classes("my-6")
         ui.label("Listado de solicitudes").classes("text-h6").style("color: var(--teal-light); margin-bottom: 12px;")
@@ -106,10 +170,15 @@ def page(content_container):
         )
         tabla.build()
 
+# ----------------------------------------------------------------------
+# Callbacks internos
+# ----------------------------------------------------------------------
 def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
-    if not f.cliente.value or not f.robot.value or not f.problema.value:
-        ui.notify("Cliente, robot y problema son obligatorios", type="negative")
+    # Validar todos los campos del formulario
+    if not f.is_valid():
+        ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
+
     nit_cliente = f.cliente.value.split(" - ")[0].strip()
     id_robot = f.robot.value.split(" - ")[0].strip()
     nuevo = registrar_ticket({
@@ -118,11 +187,15 @@ def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
         "id_cliente": nit_cliente,
         "id_robot": id_robot,
     })
-    ui.notify(f"Solicitud #{nuevo['id']} registrada — Estado: Abierto", type="positive", position="top")
+    ui.notify(f"✅ Solicitud #{nuevo['id']} registrada — Estado: Abierto", type="positive", position="top")
+
+    # Limpiar formulario
     f.fecha.value = datetime.now().strftime("%Y-%m-%d")
     f.cliente.value = None
     f.robot.value = None
     f.problema.value = ""
+    f.clear_errors()
+
     tabla_ref.set_data(_construir_filas())
 
 def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
@@ -143,7 +216,7 @@ def _dialogo_cambiar_estado(fila: dict, tabla_ref: SmartTable) -> None:
                     return
                 ok = actualizar_estado(fila["id"], sel_estado.value)
                 if ok:
-                    ui.notify(f"Ticket #{fila['id']} → {sel_estado.value} (actualizado: {datetime.today().strftime('%Y-%m-%d')})", type="positive")
+                    ui.notify(f"✅ Ticket #{fila['id']} → {sel_estado.value} (actualizado: {datetime.today().strftime('%Y-%m-%d')})", type="positive")
                     tabla_ref.set_data(_construir_filas())
                     dialogo.close()
                 else:

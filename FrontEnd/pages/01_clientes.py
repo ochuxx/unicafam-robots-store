@@ -1,122 +1,118 @@
-# FrontEnd/pages/clientes.py
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from datetime import date
 from mock_data import clientes_mock
+import re
 
-
-# ──────────────────────────────────────────────────────────────────────
-# Operaciones de backend (mock)
-# ──────────────────────────────────────────────────────────────────────
+def solo_digitos(valor):
+    """Valida que el NIT contenga solo dígitos."""
+    if not valor:
+        return True  # El required se encarga del vacío
+    if not re.match(r'^\d+$', valor):
+        return "El NIT solo puede contener números (sin puntos, guiones ni espacios)"
+    return True
 
 def registrar_cliente_en_backend(datos: dict) -> dict:
-    """
-    Agrega un nuevo cliente a la base de datos mock (clientes_mock).
-
-    :param datos: Diccionario con las claves: nit, nombre, correo, telefono, direccion, fecha_registro.
-    :return: El diccionario del cliente recién creado.
-    """
     nuevo_cliente = {
-        "nit":            datos["nit"],
-        "nombre":         datos["nombre"],
-        "correo":         datos["correo"],
-        "telefono":       datos["telefono"],
-        "direccion":      datos["direccion"],
+        "nit": datos["nit"],
+        "nombre": datos["nombre"],
+        "correo": datos["correo"],
+        "telefono": datos["telefono"],
+        "direccion": datos["direccion"],
         "fecha_registro": datos["fecha_registro"],
     }
     clientes_mock.append(nuevo_cliente)
     return nuevo_cliente
 
-
 def actualizar_cliente_en_backend(nit_cliente: str, datos: dict) -> bool:
-    """
-    Actualiza los datos de un cliente existente en clientes_mock.
-
-    :param nit_cliente: NIT del cliente a actualizar.
-    :param datos: Diccionario con los campos a actualizar (nombre, correo, telefono, direccion).
-    :return: True si se encontró y actualizó, False en caso contrario.
-    """
     for i, cliente in enumerate(clientes_mock):
         if cliente["nit"] == nit_cliente:
             clientes_mock[i].update(datos)
             return True
     return False
 
-
 def eliminar_cliente_en_backend(nit_cliente: str) -> bool:
-    """
-    Elimina un cliente de clientes_mock por su NIT.
-
-    :param nit_cliente: NIT del cliente a eliminar.
-    :return: True si se eliminó al menos un cliente, False si no se encontró.
-    """
     global clientes_mock
     longitud_anterior = len(clientes_mock)
     clientes_mock[:] = [c for c in clientes_mock if c["nit"] != nit_cliente]
     return len(clientes_mock) < longitud_anterior
 
-
-# ──────────────────────────────────────────────────────────────────────
-# Página principal
-# ──────────────────────────────────────────────────────────────────────
-
 def page(content_container):
-    """
-    Renderiza la página de gestión de clientes en el contenedor proporcionado.
-
-    Incluye:
-    - Formulario de registro (SmartForm con 2 columnas).
-    - Tabla de clientes (SmartTable) con acciones editar/eliminar.
-    - Diálogos para edición y confirmación de eliminación.
-
-    :param content_container: Contenedor (ui.column) donde se montará la página.
-    """
     with content_container:
         ui.label("Gestión de Clientes").classes("page-title")
         ui.label("Registro y consulta de compradores").classes("page-subtitle").style(
             "margin-bottom: 24px;"
         )
 
-        # ── Formulario de registro ───────────────────────────────────
         ui.label("Registrar nuevo cliente").classes("text-h6").style(
             "color: var(--teal-light);"
         )
 
+        # Formulario
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar_cliente(form, tabla_clientes),
             submit_text="Guardar cliente",
+            enable_validation=True,
+            max_length=100,
         )
         form.build()
 
-        form.nit       = form.add_field("input", "NIT",                placeholder="Ej: 900123456-7")
-        form.nombre    = form.add_field("input", "Nombre completo",    placeholder="Ej: Juan García")
-        form.correo    = form.add_field("email", "Correo electrónico", placeholder="correo@mail.com")
-        form.telefono  = form.add_field("input", "Teléfono",           placeholder="300 000 0000")
-        form.direccion = form.add_field("input", "Dirección",          placeholder="Calle 10 #5-20, Bogotá")
-        form.fecha     = form.add_field("date",  "Fecha de registro",  value=date.today().isoformat())
+        # Campos (orden correcto)
+        form.nit = form.add_field(
+            "input", "NIT",
+            placeholder="900123456",
+            required=True,
+            max_length=10,
+            validation=solo_digitos
+        )
+        form.nit.props('inputmode=numeric')   # Teclado numérico en móviles
+
+        form.nombre = form.add_field(
+            "input", "Nombre completo",
+            placeholder="Ej: Juan García",
+            required=True,
+            max_length=80
+        )
+        form.correo = form.add_field(
+            "email", "Correo electrónico",
+            placeholder="correo@mail.com",
+            required=True,
+            max_length=100
+        )
+        form.telefono = form.add_field(
+            "input", "Teléfono",
+            placeholder="300 000 0000"
+        )
+        form.direccion = form.add_field(
+            "input", "Dirección",
+            placeholder="Calle 10 #5-20, Bogotá"
+        )
+        form.fecha = form.add_field(
+            "date", "Fecha de registro",
+            value=date.today().isoformat()
+        )
 
         ui.separator().classes("my-6")
 
-        # ── Tabla de clientes ────────────────────────────────────────
         ui.label("Listado de clientes").classes("text-h6").style(
             "color: var(--teal-light);"
         )
 
         columnas_clientes = [
-            {"label": "NIT",            "field": "nit",            "width": "150px",  "filter_mode": "exact"},
-            {"label": "Nombre",         "field": "nombre",         "width": "180px",  "filter_mode": "exact"},
-            {"label": "Correo",         "field": "correo",         "width": "190px",  "filter_mode": "contains"},
-            {"label": "Teléfono",       "field": "telefono",       "width": "130px",  "filter_mode": "contains"},
-            {"label": "Dirección",      "field": "direccion",      "width": "180px",  "filter_mode": "contains"},
-            {"label": "Fecha Registro", "field": "fecha_registro", "width": "120px",  "filter_mode": "startswith"},
+            {"label": "NIT", "field": "nit", "width": "150px", "filter_mode": "exact"},
+            {"label": "Nombre", "field": "nombre", "width": "180px", "filter_mode": "exact"},
+            {"label": "Correo", "field": "correo", "width": "190px", "filter_mode": "contains"},
+            {"label": "Teléfono", "field": "telefono", "width": "130px", "filter_mode": "contains"},
+            {"label": "Dirección", "field": "direccion", "width": "180px", "filter_mode": "contains"},
+            {"label": "Fecha Registro", "field": "fecha_registro", "width": "120px", "filter_mode": "startswith"},
         ]
 
         acciones = {
-            "editar":   {"icon": "edit",   "color": "amber", "tooltip": "Editar cliente"},
-            "eliminar": {"icon": "delete", "color": "red",   "tooltip": "Eliminar cliente"},
+            "editar": {"icon": "edit", "color": "amber", "tooltip": "Editar cliente"},
+            "eliminar": {"icon": "delete", "color": "red", "tooltip": "Eliminar cliente"},
         }
 
         tabla_clientes = SmartTable(
@@ -135,83 +131,57 @@ def page(content_container):
         )
         tabla_clientes.build()
 
-
-# ──────────────────────────────────────────────────────────────────────
-# Callbacks internos
-# ──────────────────────────────────────────────────────────────────────
-
 def _registrar_cliente(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """
-    Callback del botón Guardar cliente. Valida el formulario, persiste el cliente
-    y refresca la tabla.
-
-    :param f: Instancia del SmartForm con los campos.
-    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
-    """
-    if not f.nit.value or not f.nombre.value or not f.correo.value:
-        ui.notify("NIT, Nombre y Correo son obligatorios", type="negative")
+    # Validar todos los campos del formulario
+    if not f.is_valid():
+        ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
+    # Datos del formulario (el NIT ya es string)
     datos = {
-        "nit":            f.nit.value.strip(),
-        "nombre":         f.nombre.value.strip(),
-        "correo":         f.correo.value.strip(),
-        "telefono":       (f.telefono.value or "").strip(),
-        "direccion":      (f.direccion.value or "").strip(),
+        "nit": f.nit.value.strip(),
+        "nombre": f.nombre.value.strip(),
+        "correo": f.correo.value.strip(),
+        "telefono": (f.telefono.value or "").strip(),
+        "direccion": (f.direccion.value or "").strip(),
         "fecha_registro": f.fecha.value,
     }
 
-    # Verificar NIT duplicado
-    nits_existentes = {c["nit"] for c in clientes_mock}
-    if datos["nit"] in nits_existentes:
+    # Validación de negocio: NIT duplicado
+    if any(c["nit"] == datos["nit"] for c in clientes_mock):
         ui.notify(f"Ya existe un cliente con NIT {datos['nit']}", type="warning")
         return
 
     nuevo = registrar_cliente_en_backend(datos)
-    ui.notify(
-        f"✅ Cliente {nuevo['nombre']} registrado (NIT {nuevo['nit']})",
-        type="positive",
-    )
+    ui.notify(f"✅ Cliente {nuevo['nombre']} registrado (NIT {nuevo['nit']})", type="positive")
 
     # Limpiar formulario
-    f.nit.value = f.nombre.value = f.correo.value = ""
-    f.telefono.value = f.direccion.value = ""
+    f.nit.value = ""
+    f.nombre.value = ""
+    f.correo.value = ""
+    f.telefono.value = ""
+    f.direccion.value = ""
     f.fecha.value = date.today().isoformat()
+    f.clear_errors()
 
     tabla_ref.set_data(clientes_mock)
 
-
 def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Despachador de acciones de la tabla. Recibe la acción y la fila completa
-    desde SmartTable._dispatch_action() y redirige a la función correspondiente.
-
-    :param accion: Nombre de la acción ('editar' o 'eliminar').
-    :param fila: Diccionario con los datos del cliente.
-    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
-    """
     if accion == "editar":
         _abrir_dialogo_edicion(fila, tabla_ref)
     elif accion == "eliminar":
         _confirmar_eliminacion(fila, tabla_ref)
 
-
 def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo modal con los datos del cliente para editarlos.
-
-    :param fila: Datos actuales del cliente.
-    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar cliente — {fila['nit']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
         )
 
-        inp_nombre    = ui.input("Nombre completo",    value=fila.get("nombre",   "")).classes("w-full")
-        inp_correo    = ui.input("Correo electrónico", value=fila.get("correo",   "")).classes("w-full")
-        inp_telefono  = ui.input("Teléfono",           value=fila.get("telefono", "")).classes("w-full")
-        inp_direccion = ui.input("Dirección",          value=fila.get("direccion","")).classes("w-full")
+        inp_nombre = ui.input("Nombre completo", value=fila.get("nombre", "")).classes("w-full")
+        inp_correo = ui.input("Correo electrónico", value=fila.get("correo", "")).classes("w-full")
+        inp_telefono = ui.input("Teléfono", value=fila.get("telefono", "")).classes("w-full")
+        inp_direccion = ui.input("Dirección", value=fila.get("direccion", "")).classes("w-full")
 
         with ui.row().classes("gap-2 mt-4 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
@@ -222,17 +192,14 @@ def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
                     return
 
                 datos_actualizados = {
-                    "nombre":    inp_nombre.value.strip(),
-                    "correo":    inp_correo.value.strip(),
-                    "telefono":  (inp_telefono.value or "").strip(),
+                    "nombre": inp_nombre.value.strip(),
+                    "correo": inp_correo.value.strip(),
+                    "telefono": (inp_telefono.value or "").strip(),
                     "direccion": (inp_direccion.value or "").strip(),
                 }
                 ok = actualizar_cliente_en_backend(fila["nit"], datos_actualizados)
                 if ok:
-                    ui.notify(
-                        f"✅ Cliente {datos_actualizados['nombre']} actualizado",
-                        type="positive",
-                    )
+                    ui.notify(f"✅ Cliente {datos_actualizados['nombre']} actualizado", type="positive")
                     tabla_ref.set_data(clientes_mock)
                     dialogo.close()
                 else:
@@ -242,18 +209,9 @@ def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
 
     dialogo.open()
 
-
 def _confirmar_eliminacion(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo de confirmación antes de eliminar el cliente.
-
-    :param fila: Datos del cliente a eliminar.
-    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
-        ui.label("Eliminar cliente").classes("text-h6").style(
-            "color: #F44336; margin-bottom: 8px;"
-        )
+        ui.label("Eliminar cliente").classes("text-h6").style("color: #F44336; margin-bottom: 8px;")
         ui.label(
             f"¿Estás seguro de que deseas eliminar a {fila['nombre']} "
             f"(NIT {fila['nit']})? Esta acción no se puede deshacer."
@@ -265,10 +223,7 @@ def _confirmar_eliminacion(fila: dict, tabla_ref: SmartTable) -> None:
             def confirmar():
                 ok = eliminar_cliente_en_backend(fila["nit"])
                 if ok:
-                    ui.notify(
-                        f"🗑️ Cliente {fila['nombre']} eliminado",
-                        type="positive",
-                    )
+                    ui.notify(f"🗑️ Cliente {fila['nombre']} eliminado", type="positive")
                     tabla_ref.set_data(clientes_mock)
                     dialogo.close()
                 else:

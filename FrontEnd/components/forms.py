@@ -1,13 +1,10 @@
-# FrontEnd/components/forms.py
 from nicegui import ui
-from typing import Callable, Optional, List, Any
+from typing import Callable, Optional, List, Any, Union, Dict, Tuple
+import re
 
 class SmartForm:
     """
-    Formulario dinámico con diseño en cuadrícula (CSS Grid) y botones opcionales.
-
-    Permite agregar campos de distintos tipos (input, textarea, select, etc.)
-    y obtener sus valores. El contenedor principal es una tarjeta de NiceGUI.
+    Formulario dinámico con diseño en cuadrícula y validación MANUAL.
     """
 
     def __init__(
@@ -21,22 +18,10 @@ class SmartForm:
         submit_callback: Optional[Callable] = None,
         cancel_callback: Optional[Callable] = None,
         submit_text: str = "Guardar",
-        cancel_text: str = "Cancelar"
+        cancel_text: str = "Cancelar",
+        max_length: Optional[int] = None,
+        enable_validation: bool = True,
     ):
-        """
-        Inicializa el SmartForm.
-
-        :param title: Título del formulario (opcional).
-        :param subtitle: Subtítulo (opcional).
-        :param padding: Padding interno de la tarjeta.
-        :param gap: Espaciado entre columnas del grid.
-        :param columns: Número de columnas del grid (CSS grid).
-        :param max_width: Ancho máximo de la tarjeta (ej: '600px').
-        :param submit_callback: Función a ejecutar al pulsar "Guardar".
-        :param cancel_callback: Función a ejecutar al pulsar "Cancelar".
-        :param submit_text: Texto del botón de guardado.
-        :param cancel_text: Texto del botón de cancelación.
-        """
         self.title = title
         self.subtitle = subtitle
         self.padding = padding
@@ -47,18 +32,14 @@ class SmartForm:
         self.cancel_callback = cancel_callback
         self.submit_text = submit_text
         self.cancel_text = cancel_text
+        self.max_length = max_length
+        self.enable_validation = enable_validation
 
-        self.fields = []                # Lista de componentes de campo generados
-        self.container = None           # Tarjeta principal (se crea en build)
-        self.grid_container = None      # Contenedor interno con display: grid
+        self.fields: List[Tuple[ui.element, str, str, bool, Optional[int], List]] = []
+        self.container = None
+        self.grid_container = None
 
     def build(self) -> ui.card:
-        """
-        Construye y retorna la tarjeta del formulario con todos sus elementos.
-        Debe llamarse después de agregar los campos (add_field) para mostrarlos.
-
-        :return: Componente ui.card que contiene el formulario.
-        """
         with ui.card() as self.container:
             self.container.classes('w-full').style(
                 f'background: var(--bg-card); '
@@ -101,49 +82,94 @@ class SmartForm:
         rows: int = 1,
         options: List[str] = None,
         on_change: Optional[Callable] = None,
+        max_length: Optional[int] = None,
+        validation: Optional[Union[Callable, Dict]] = None,
+        integer_only: bool = False,
         **kwargs
     ):
-        """
-        Agrega un campo al formulario (dentro de la cuadrícula).
-
-        :param field_type: Tipo de campo ('input', 'textarea', 'select', 'number', 'date', 'email', 'password').
-        :param label: Etiqueta del campo.
-        :param placeholder: Texto de placeholder.
-        :param value: Valor inicial.
-        :param required: Si es obligatorio (no se aplica validación automática).
-        :param rows: Número de filas (solo para textarea).
-        :param options: Lista de opciones (solo para select).
-        :param on_change: Callback al cambiar el valor.
-        :param kwargs: Argumentos adicionales pasados al componente NiceGUI.
-        :return: El componente de campo creado (ui.input, ui.select, etc.).
-        """
         with self.grid_container:
             with ui.element('div').style('width: 100%;'):
                 if label:
                     ui.label(label).classes('text-sm font-medium mb-1').style('color: var(--text-muted);')
 
                 field = None
+                char_limit = max_length if max_length is not None else self.max_length
+
+                # ----- Crear el campo -----
                 if field_type == "input":
                     field = ui.input(value=value, placeholder=placeholder, on_change=on_change, **kwargs)
+                    if char_limit is not None:
+                        field.props(f'maxlength={char_limit}')
+
                 elif field_type == "textarea":
                     field = ui.textarea(value=value, placeholder=placeholder, on_change=on_change, **kwargs)
                     if rows > 1:
                         field.props(f'rows={rows}')
+                    if char_limit is not None:
+                        field.props(f'maxlength={char_limit}')
+
                 elif field_type == "select":
                     field = ui.select(options=options or [], value=value, on_change=on_change, **kwargs)
+
                 elif field_type == "number":
                     num_value = None if value in (None, '') else value
-                    field = ui.number(value=num_value, placeholder=placeholder, on_change=on_change, **kwargs)
+                    if integer_only:
+                        # Configurar para solo enteros
+                        field = ui.number(
+                            value=num_value,
+                            placeholder=placeholder,
+                            on_change=on_change,
+                            step=1,
+                            precision=0,
+                            **kwargs
+                        )
+                    else:
+                        field = ui.number(
+                            value=num_value,
+                            placeholder=placeholder,
+                            on_change=on_change,
+                            **kwargs
+                        )
+
                 elif field_type == "date":
                     field = ui.input(value=value, on_change=on_change, **kwargs)
                     field.props('type=date')
+
                 elif field_type == "email":
-                    field = ui.input(value=value, placeholder=placeholder, on_change=on_change).props('type=email')
+                    field = ui.input(value=value, placeholder=placeholder, on_change=on_change, **kwargs)
+                    field.props('type=email')
+                    if char_limit is not None:
+                        field.props(f'maxlength={char_limit}')
+
                 elif field_type == "password":
-                    field = ui.input(value=value, placeholder=placeholder, on_change=on_change).props('type=password')
+                    field = ui.input(value=value, placeholder=placeholder, on_change=on_change, **kwargs)
+                    field.props('type=password')
+                    if char_limit is not None:
+                        field.props(f'maxlength={char_limit}')
+
                 else:
                     field = ui.input(value=value, placeholder=placeholder, on_change=on_change, **kwargs)
+                    if char_limit is not None:
+                        field.props(f'maxlength={char_limit}')
 
+                # ----- Construir reglas de validación -----
+                validation_rules = []
+                if self.enable_validation:
+                    if required:
+                        validation_rules.append(('required', None))
+                    if field_type == "email":
+                        validation_rules.append(('email_format', None))
+                    elif field_type == "date":
+                        validation_rules.append(('date', None))
+                    if validation:
+                        validation_rules.append(('custom', validation))
+                    # Para campos number con integer_only=True, agregar validación de entero
+                    if field_type == "number" and integer_only:
+                        validation_rules.append(('integer', None))
+                    elif field_type == "number" and not integer_only:
+                        validation_rules.append(('number', None))
+
+                # ----- Estilos comunes -----
                 if field:
                     field.classes('w-full').style('''
                         background: var(--bg-panel) !important;
@@ -153,14 +179,93 @@ class SmartForm:
                         padding: 8px 12px;
                     ''')
                     field.props('outlined dense')
-                    self.fields.append(field)
+                    self.fields.append((field, label, field_type, required, char_limit, validation_rules))
 
         return field
 
-    def get_values(self) -> dict:
-        """
-        Obtiene los valores actuales de todos los campos del formulario.
+    # --------------------------------------------------------------
+    # Validación manual
+    # --------------------------------------------------------------
+    def _validate_field(self, field, value, field_type, required, char_limit, rules) -> Optional[str]:
+        # 1. Requerido
+        if required:
+            if value is None or (isinstance(value, str) and value.strip() == ""):
+                return "Este campo es obligatorio"
 
-        :return: Diccionario con claves 'field_0', 'field_1', ... y sus respectivos valores.
-        """
-        return {f"field_{i}": f.value for i, f in enumerate(self.fields)}
+        # Si no es requerido y está vacío, salir
+        if not required and (value is None or (isinstance(value, str) and value.strip() == "")):
+            return None
+
+        # 2. Longitud máxima (solo strings)
+        if char_limit and isinstance(value, str) and len(value) > char_limit:
+            return f"Máximo {char_limit} caracteres"
+
+        # 3. Validaciones por regla
+        for rule, param in rules:
+            if rule == 'email_format':
+                if value and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', value):
+                    return "Ingrese un correo electrónico válido (ej: usuario@dominio.com)"
+            elif rule == 'number':
+                try:
+                    float(value)
+                except (ValueError, TypeError):
+                    return "Solo se permiten caracteres numéricos"
+            elif rule == 'integer':
+                # Validar que sea un número entero (sin decimales)
+                try:
+                    num = float(value)
+                    if num != int(num):
+                        return "Solo se permiten números enteros (sin punto decimal)"
+                except (ValueError, TypeError):
+                    return "Debe ingresar un número entero válido"
+            elif rule == 'date':
+                if value and not re.match(r'^\d{4}-\d{2}-\d{2}$', value):
+                    return "Formato de fecha inválido. Use YYYY-MM-DD"
+            elif rule == 'custom':
+                if callable(param):
+                    res = param(value)
+                    if res is not True:
+                        return str(res)
+                elif isinstance(param, dict):
+                    try:
+                        num = float(value)
+                        if 'min' in param and num < param['min']:
+                            return f"El valor debe ser mayor o igual a {param['min']}"
+                        if 'max' in param and num > param['max']:
+                            return f"El valor debe ser menor o igual a {param['max']}"
+                    except:
+                        return "Debe ser un número válido"
+        return None
+
+    def _clear_field_error(self, field):
+        if hasattr(field, 'set_error'):
+            field.set_error(None)
+        elif hasattr(field, 'error'):
+            field.error = None
+
+    def _set_field_error(self, field, message):
+        if hasattr(field, 'set_error'):
+            field.set_error(message)
+        elif hasattr(field, 'error'):
+            field.error = message
+
+    def is_valid(self) -> bool:
+        all_valid = True
+        for field, label, field_type, required, char_limit, rules in self.fields:
+            error_msg = self._validate_field(field, field.value, field_type, required, char_limit, rules)
+            if error_msg:
+                self._set_field_error(field, error_msg)
+                all_valid = False
+            else:
+                self._clear_field_error(field)
+        return all_valid
+
+    def clear_errors(self):
+        for field, *_ in self.fields:
+            self._clear_field_error(field)
+
+    def get_values(self) -> dict:
+        return {f"field_{i}": field.value for i, (field, *_) in enumerate(self.fields)}
+
+    def get_values_with_labels(self) -> dict:
+        return {label: field.value for field, label, *_, in self.fields if label}

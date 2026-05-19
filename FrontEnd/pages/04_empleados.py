@@ -1,20 +1,24 @@
-# FrontEnd/pages/04_empleados.py
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import empleados_mock
+import re
+
+# ──────────────────────────────────────────────────────────────────────
+# Función de validación personalizada para el documento (solo dígitos)
+# ──────────────────────────────────────────────────────────────────────
+def solo_digitos_documento(valor):
+    """Valida que el documento de identidad contenga solo dígitos."""
+    if not valor:
+        return True
+    if not re.match(r'^\d+$', valor):
+        return "El documento solo puede contener números (sin puntos, guiones ni espacios)"
+    return True
 
 # ──────────────────────────────────────────────────────────────────────
 # Operaciones de backend (mock)
 # ──────────────────────────────────────────────────────────────────────
-
 def registrar_empleado_en_backend(datos: dict) -> dict:
-    """
-    Agrega un nuevo empleado a la base de datos mock (empleados_mock).
-
-    :param datos: Diccionario con las claves: documento, nombre, cargo, correo, telefono.
-    :return: El diccionario del empleado recién creado.
-    """
     nuevo_empleado = {
         "id":        datos["documento"],
         "nombre":    datos["nombre"],
@@ -25,79 +29,85 @@ def registrar_empleado_en_backend(datos: dict) -> dict:
     empleados_mock.append(nuevo_empleado)
     return nuevo_empleado
 
-
 def actualizar_empleado_en_backend(doc_empleado: str, datos: dict) -> bool:
-    """
-    Actualiza los datos de un empleado existente en empleados_mock.
-
-    :param doc_empleado: Documento de identidad del empleado a actualizar.
-    :param datos: Diccionario con los campos a actualizar (nombre, cargo, correo, telefono).
-    :return: True si se encontró y actualizó, False en caso contrario.
-    """
     for i, emp in enumerate(empleados_mock):
         if emp["id"] == doc_empleado:
             empleados_mock[i].update(datos)
             return True
     return False
 
-
 def eliminar_empleado_en_backend(doc_empleado: str) -> bool:
-    """
-    Elimina un empleado de empleados_mock por su documento de identidad.
-
-    :param doc_empleado: Documento del empleado a eliminar.
-    :return: True si se eliminó al menos un empleado, False si no se encontró.
-    """
     global empleados_mock
     longitud_anterior = len(empleados_mock)
     empleados_mock[:] = [e for e in empleados_mock if e["id"] != doc_empleado]
     return len(empleados_mock) < longitud_anterior
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Página principal
 # ──────────────────────────────────────────────────────────────────────
-
 def page(content_container):
-    """
-    Renderiza la página de gestión de empleados en el contenedor proporcionado.
-
-    Incluye:
-    - Formulario de registro (SmartForm con 2 columnas).
-    - Tabla de empleados (SmartTable) con acciones editar/eliminar.
-    - Diálogos para edición y confirmación de eliminación.
-
-    :param content_container: Contenedor (ui.column) donde se montará la página.
-    """
     with content_container:
         ui.label("Gestión de Empleados").classes("page-title")
         ui.label("Registro de personal").classes("page-subtitle").style(
             "margin-bottom: 24px;"
         )
 
-        # ── Formulario de registro ───────────────────────────────────
         ui.label("Registrar nuevo empleado").classes("text-h6").style(
             "color: var(--teal-light);"
         )
 
+        # Formulario con validación manual
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar_empleado(form, tabla_empleados),
             submit_text="Guardar empleado",
+            enable_validation=True,
+            max_length=100,   # límite global para textos
         )
         form.build()
 
-        # Campos del formulario
-        form.documento = form.add_field("input", "Documento de identidad", placeholder="Ej: 12345678", required=True)
-        form.nombre    = form.add_field("input", "Nombre completo", placeholder="Nombres y apellidos")
-        form.cargo     = form.add_field("input", "Cargo", placeholder="Ej: Vendedor, Técnico, Administrador")
-        form.correo    = form.add_field("email", "Correo electrónico", placeholder="empleado@empresa.com")
-        form.telefono  = form.add_field("input", "Teléfono", placeholder="300 000 0000")
+        # Campo: documento (único)
+        form.documento = form.add_field(
+            "input", "Documento de identidad",
+            placeholder="12345678",
+            required=True,
+            max_length=15,
+            validation=solo_digitos_documento
+        )
+        form.documento.props('inputmode=numeric')  # teclado numérico en móviles
+
+        # Campo: nombre completo
+        form.nombre = form.add_field(
+            "input", "Nombre completo",
+            placeholder="Nombres y apellidos",
+            required=True,
+            max_length=80
+        )
+
+        # Campo: cargo
+        form.cargo = form.add_field(
+            "input", "Cargo",
+            placeholder="Ej: Vendedor, Técnico, Administrador",
+            max_length=60
+        )
+
+        # Campo: correo electrónico
+        form.correo = form.add_field(
+            "email", "Correo electrónico",
+            placeholder="empleado@empresa.com",
+            max_length=80
+        )
+
+        # Campo: teléfono
+        form.telefono = form.add_field(
+            "input", "Teléfono",
+            placeholder="300 000 0000",
+            max_length=20
+        )
 
         ui.separator().classes("my-6")
 
-        # ── Tabla de empleados ───────────────────────────────────────
         ui.label("Listado de empleados").classes("text-h6").style(
             "color: var(--teal-light);"
         )
@@ -131,21 +141,13 @@ def page(content_container):
         )
         tabla_empleados.build()
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Callbacks internos
 # ──────────────────────────────────────────────────────────────────────
-
 def _registrar_empleado(f: SmartForm, tabla_ref: SmartTable) -> None:
-    """
-    Callback del botón Guardar empleado. Valida el formulario, persiste el empleado
-    y refresca la tabla.
-
-    :param f: Instancia del SmartForm con los campos.
-    :param tabla_ref: Referencia a la SmartTable para actualizar los datos.
-    """
-    if not f.documento.value or not f.nombre.value:
-        ui.notify("Documento de identidad y nombre son obligatorios", type="negative")
+    # Validar todos los campos del formulario
+    if not f.is_valid():
+        ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
     datos = {
@@ -156,9 +158,8 @@ def _registrar_empleado(f: SmartForm, tabla_ref: SmartTable) -> None:
         "telefono":  (f.telefono.value or "").strip(),
     }
 
-    # Verificar documento duplicado
-    docs_existentes = {e["id"] for e in empleados_mock}
-    if datos["documento"] in docs_existentes:
+    # Validación de negocio: documento duplicado
+    if any(e["id"] == datos["documento"] for e in empleados_mock):
         ui.notify(f"Ya existe un empleado con documento {datos['documento']}", type="warning")
         return
 
@@ -174,31 +175,17 @@ def _registrar_empleado(f: SmartForm, tabla_ref: SmartTable) -> None:
     f.cargo.value = ""
     f.correo.value = ""
     f.telefono.value = ""
+    f.clear_errors()
 
     tabla_ref.set_data(empleados_mock)
 
-
 def _manejar_accion_empleado(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Despachador de acciones de la tabla de empleados.
-
-    :param accion: Nombre de la acción ('editar' o 'eliminar').
-    :param fila: Diccionario con los datos del empleado.
-    :param tabla_ref: Referencia a la SmartTable para actualizar después de cambios.
-    """
     if accion == "editar":
         _abrir_dialogo_edicion_empleado(fila, tabla_ref)
     elif accion == "eliminar":
         _confirmar_eliminacion_empleado(fila, tabla_ref)
 
-
 def _abrir_dialogo_edicion_empleado(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo modal con los datos del empleado para editarlos.
-
-    :param fila: Datos actuales del empleado.
-    :param tabla_ref: Referencia a la tabla para refrescar después de guardar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar empleado — {fila['id']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -238,14 +225,7 @@ def _abrir_dialogo_edicion_empleado(fila: dict, tabla_ref: SmartTable) -> None:
 
     dialogo.open()
 
-
 def _confirmar_eliminacion_empleado(fila: dict, tabla_ref: SmartTable) -> None:
-    """
-    Abre un diálogo de confirmación antes de eliminar el empleado.
-
-    :param fila: Datos del empleado a eliminar.
-    :param tabla_ref: Referencia a la tabla para refrescar después de eliminar.
-    """
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar empleado").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"
