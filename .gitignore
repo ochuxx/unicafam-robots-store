@@ -9,3 +9,7 @@ concept.py
 **/*.drawio.bkp
 **/*.drawio.dtmp
 **/__pycache__/
+
+# Others
+venv/
+BackEnd/.env
