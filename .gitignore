@@ -11,5 +11,7 @@ concept.py
 **/__pycache__/
 
 # Others
-venv/
-BackEnd/.env
+.venv/
+BackEnd/GAS/secrets.js
+BackEnd/GAS/appsscript.json
+BackEnd/GAS/.clasp.json
