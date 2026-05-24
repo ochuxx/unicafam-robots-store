@@ -1,27 +1,5 @@
 // Guardar datos en sheets
 function setRobots(data) {
-  // Validate input data
-  if (!validateTextLength(data.nombre_robot, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre del robot es requerido y debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.descripcion !== undefined && !validateTextLength(data.descripcion, 0, 500)) {
-    return {
-      success: false,
-      message: 'Descripción debe tener máximo 500 caracteres'
-    };
-  }
-  
-  if (!validateTextLength(data.tipo, 1, 50)) {
-    return {
-      success: false,
-      message: 'Tipo es requerido y debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
   const fields = ['nombre_robot', 'descripcion', 'tipo'];
   const rowToAppend = [];
   
@@ -76,36 +54,6 @@ function setRobots(data) {
 
 // Editar datos en sheets
 function editRobots(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_robot)) {
-    return {
-      success: false,
-      message: 'ID de robot es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.nombre_robot !== undefined && !validateTextLength(data.nombre_robot, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre del robot debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.descripcion !== undefined && !validateTextLength(data.descripcion, 0, 500)) {
-    return {
-      success: false,
-      message: 'Descripción debe tener máximo 500 caracteres'
-    };
-  }
-  
-  if (data.tipo !== undefined && !validateTextLength(data.tipo, 1, 50)) {
-    return {
-      success: false,
-      message: 'Tipo debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
   const fields = ['nombre_robot', 'descripcion', 'tipo'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Robots');

@@ -1,34 +1,5 @@
 // Guardar datos en sheets
 function setEmpleados(data) {
-  // Validate input data
-  if (!validateTextLength(data.nombre, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre es requerido y debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.cargo !== undefined && !validateTextLength(data.cargo, 0, 100)) {
-    return {
-      success: false,
-      message: 'Cargo debe tener máximo 100 caracteres'
-    };
-  }
-  
-  if (!validateEmail(data.correo)) {
-    return {
-      success: false,
-      message: 'Correo electrónico es requerido y debe tener un formato válido'
-    };
-  }
-  
-  if (!validatePhone(data.telefono)) {
-    return {
-      success: false,
-      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
-    };
-  }
-  
   const fields = ['nombre', 'cargo', 'correo', 'telefono'];
   const rowToAppend = [];
   
@@ -84,43 +55,6 @@ function setEmpleados(data) {
 
 // Editar datos en sheets
 function editEmpleados(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_empleado)) {
-    return {
-      success: false,
-      message: 'ID de empleado es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.nombre !== undefined && !validateTextLength(data.nombre, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.cargo !== undefined && !validateTextLength(data.cargo, 0, 100)) {
-    return {
-      success: false,
-      message: 'Cargo debe tener máximo 100 caracteres'
-    };
-  }
-  
-  if (data.correo !== undefined && !validateEmail(data.correo)) {
-    return {
-      success: false,
-      message: 'Correo electrónico debe tener un formato válido'
-    };
-  }
-  
-  if (data.telefono !== undefined && !validatePhone(data.telefono)) {
-    return {
-      success: false,
-      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
-    };
-  }
-  
   const fields = ['nombre', 'cargo', 'correo', 'telefono'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Empleados');

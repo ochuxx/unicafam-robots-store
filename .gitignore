@@ -16,6 +16,7 @@ concept.py
 BackEnd/GAS/secrets.js
 BackEnd/GAS/appsscript.json
 BackEnd/GAS/.clasp.json
+FrontEnd/test.py
 
 # Sensibles
 FrontEnd/.env

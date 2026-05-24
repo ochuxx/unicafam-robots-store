@@ -3,6 +3,7 @@ from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import robots_mock
 import re
+from components.loading import LoadingOverlay, with_spinner
 
 # ──────────────────────────────────────────────────────────────────────
 # Función de validación personalizada para el número de serie (único + formato)
@@ -50,6 +51,9 @@ TIPOS_ROBOT = ["Doméstico", "Industrial", "Educativo", "Médico", "Comercial", 
 
 def page(content_container):
     with content_container:
+        _loading = LoadingOverlay()
+        _loading.build()
+
         ui.label("Gestión de Robots").classes("page-title")
         ui.label("Registro y catálogo de robots").classes("page-subtitle").style("margin-bottom: 24px;")
 
@@ -59,7 +63,7 @@ def page(content_container):
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
-            submit_callback=lambda: _registrar_robot(form, tabla_robots),
+            submit_callback=lambda: _registrar_robot(form, tabla_robots, _loading),
             submit_text="Guardar robot",
             enable_validation=True,
             max_length=100,   # límite global para textos
@@ -125,7 +129,7 @@ def page(content_container):
             show_pagination=True,
             show_actions=True,
             action_buttons=acciones,
-            on_action=lambda accion, fila: _manejar_accion_robot(accion, fila, tabla_robots),
+            on_action=lambda accion, fila: _manejar_accion_robot(accion, fila, tabla_robots, _loading),
             row_key="id",
             max_height="500px",
             filterable=True,
@@ -135,13 +139,11 @@ def page(content_container):
 # ──────────────────────────────────────────────────────────────────────
 # Callbacks internos
 # ──────────────────────────────────────────────────────────────────────
-def _registrar_robot(f: SmartForm, tabla_ref: SmartTable) -> None:
-    # Validar todos los campos (requerido, formato, longitud)
+async def _registrar_robot(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if not f.is_valid():
         ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
-    # Recolectar datos
     datos = {
         "id":          f.id_robot.value.strip(),
         "nombre":      f.nombre.value.strip(),
@@ -149,30 +151,32 @@ def _registrar_robot(f: SmartForm, tabla_ref: SmartTable) -> None:
         "tipo":        f.tipo.value,
     }
 
-    # Validación de negocio: número de serie único
     if any(r["id"] == datos["id"] for r in robots_mock):
         ui.notify(f"Ya existe un robot con número de serie {datos['id']}", type="warning")
         return
 
-    nuevo = registrar_robot_en_backend(datos)
-    ui.notify(f"✅ Robot {nuevo['nombre']} registrado (Serie {nuevo['id']})", type="positive")
+    def hacer():
+        nuevo = registrar_robot_en_backend(datos)
+        ui.notify(f"✅ Robot {nuevo['nombre']} registrado (Serie {nuevo['id']})", type="positive")
+        f.id_robot.value = ""
+        f.nombre.value = ""
+        f.descripcion.value = ""
+        f.tipo.value = None
+        f.clear_errors()
+        return nuevo
 
-    # Limpiar formulario
-    f.id_robot.value = ""
-    f.nombre.value = ""
-    f.descripcion.value = ""
-    f.tipo.value = None          # Para select
-    f.clear_errors()
+    def refrescar():
+        tabla_ref.set_data(robots_mock)
 
-    tabla_ref.set_data(robots_mock)
+    await with_spinner(_loading, hacer, refresh=refrescar)
 
-def _manejar_accion_robot(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
+def _manejar_accion_robot(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "editar":
-        _abrir_dialogo_edicion_robot(fila, tabla_ref)
+        _abrir_dialogo_edicion_robot(fila, tabla_ref, _loading)
     elif accion == "eliminar":
-        _confirmar_eliminacion_robot(fila, tabla_ref)
+        _confirmar_eliminacion_robot(fila, tabla_ref, _loading)
 
-def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
+def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar robot — {fila['id']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -184,7 +188,8 @@ def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
 
         with ui.row().classes("gap-2 mt-4 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
-            def guardar():
+
+            async def guardar():
                 if not inp_nombre.value or not inp_tipo.value:
                     ui.notify("Nombre y Tipo son obligatorios", type="negative")
                     return
@@ -193,17 +198,25 @@ def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable) -> None:
                     "descripcion": inp_descripcion.value.strip(),
                     "tipo":        inp_tipo.value,
                 }
-                ok = actualizar_robot_en_backend(fila["id"], datos_actualizados)
-                if ok:
-                    ui.notify(f"✅ Robot {datos_actualizados['nombre']} actualizado", type="positive")
+
+                def editar():
+                    ok = actualizar_robot_en_backend(fila["id"], datos_actualizados)
+                    if ok:
+                        ui.notify(f"✅ Robot {datos_actualizados['nombre']} actualizado", type="positive")
+                        dialogo.close()
+                    else:
+                        ui.notify("No se encontró el robot para actualizar", type="negative")
+                    return ok
+
+                def refrescar():
                     tabla_ref.set_data(robots_mock)
-                    dialogo.close()
-                else:
-                    ui.notify("No se encontró el robot para actualizar", type="negative")
+
+                await with_spinner(_loading, editar, refresh=refrescar)
+
             ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
     dialogo.open()
 
-def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable) -> None:
+def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar robot").classes("text-h6").style("color: #F44336; margin-bottom: 8px;")
         ui.label(
@@ -212,13 +225,21 @@ def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable) -> None:
         ).style("color: var(--text-main); margin-bottom: 16px;")
         with ui.row().classes("gap-2 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
-            def confirmar():
-                ok = eliminar_robot_en_backend(fila["id"])
-                if ok:
-                    ui.notify(f"🗑️ Robot {fila['nombre']} eliminado", type="positive")
+
+            async def confirmar():
+                def eliminar():
+                    ok = eliminar_robot_en_backend(fila["id"])
+                    if ok:
+                        ui.notify(f"🗑️ Robot {fila['nombre']} eliminado", type="positive")
+                        dialogo.close()
+                    else:
+                        ui.notify("No se encontró el robot para eliminar", type="negative")
+                    return ok
+
+                def refrescar():
                     tabla_ref.set_data(robots_mock)
-                    dialogo.close()
-                else:
-                    ui.notify("No se encontró el robot para eliminar", type="negative")
+
+                await with_spinner(_loading, eliminar, refresh=refrescar)
+
             ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
     dialogo.open()

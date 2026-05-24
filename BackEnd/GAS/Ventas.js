@@ -1,27 +1,5 @@
 // Guardar datos en sheets
 function setVentas(data) {
-  // Validate input data
-  if (!validateNumericId(data.id_cliente)) {
-    return {
-      success: false,
-      message: 'ID de cliente es requerido y debe ser un número positivo'
-    };
-  }
-  
-  if (!validateNumericId(data.id_empleado)) {
-    return {
-      success: false,
-      message: 'ID de empleado es requerido y debe ser un número positivo'
-    };
-  }
-  
-  if (data.total !== undefined && (!validateNumericId(data.total) || Number(data.total) < 0)) {
-    return {
-      success: false,
-      message: 'Total debe ser un número positivo'
-    };
-  }
-  
   const fields = ['id_cliente', 'id_empleado', 'total'];
   const rowToAppend = [];
   
@@ -79,36 +57,6 @@ function setVentas(data) {
 
 // Editar datos en sheets
 function editVentas(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_venta)) {
-    return {
-      success: false,
-      message: 'ID de venta es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.id_cliente !== undefined && !validateNumericId(data.id_cliente)) {
-    return {
-      success: false,
-      message: 'ID de cliente debe ser un número positivo'
-    };
-  }
-  
-  if (data.id_empleado !== undefined && !validateNumericId(data.id_empleado)) {
-    return {
-      success: false,
-      message: 'ID de empleado debe ser un número positivo'
-    };
-  }
-  
-  if (data.total !== undefined && (!validateNumericId(data.total) || Number(data.total) < 0)) {
-    return {
-      success: false,
-      message: 'Total debe ser un número positivo'
-    };
-  }
-  
   const fields = ['id_cliente', 'id_empleado', 'total'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Ventas');

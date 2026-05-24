@@ -1,34 +1,5 @@
 // Guardar datos en sheets
 function setInventarios(data) {
-  // Validate input data
-  if (data.precio !== undefined && (!validateNumericId(data.precio) || Number(data.precio) < 0)) {
-    return {
-      success: false,
-      message: 'Precio debe ser un número positivo'
-    };
-  }
-  
-  if (data.stock !== undefined && (!validateNumericId(data.stock) || Number(data.stock) < 0)) {
-    return {
-      success: false,
-      message: 'Stock debe ser un número positivo'
-    };
-  }
-  
-  if (data.id_robot !== undefined && !validateTextLength(data.id_robot, 1, 50)) {
-    return {
-      success: false,
-      message: 'ID de robot es requerido y debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
-  if (data.id_proveedor !== undefined && !validateTextLength(data.id_proveedor, 1, 50)) {
-    return {
-      success: false,
-      message: 'ID de proveedor es requerido y debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
   const fields = ['precio', 'stock', 'id_robot', 'id_proveedor'];
   const rowToAppend = [];
   
@@ -87,43 +58,6 @@ function setInventarios(data) {
 
 // Editar datos en sheets
 function editInventarios(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_inventario)) {
-    return {
-      success: false,
-      message: 'ID de inventario es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.precio !== undefined && (!validateNumericId(data.precio) || Number(data.precio) < 0)) {
-    return {
-      success: false,
-      message: 'Precio debe ser un número positivo'
-    };
-  }
-  
-  if (data.stock !== undefined && (!validateNumericId(data.stock) || Number(data.stock) < 0)) {
-    return {
-      success: false,
-      message: 'Stock debe ser un número positivo'
-    };
-  }
-  
-  if (data.id_robot !== undefined && !validateTextLength(data.id_robot, 1, 50)) {
-    return {
-      success: false,
-      message: 'ID de robot debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
-  if (data.id_proveedor !== undefined && !validateTextLength(data.id_proveedor, 1, 50)) {
-    return {
-      success: false,
-      message: 'ID de proveedor debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
   const fields = ['precio', 'stock', 'id_robot', 'id_proveedor'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Inventarios');

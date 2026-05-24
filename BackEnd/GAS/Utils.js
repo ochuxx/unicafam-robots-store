@@ -88,29 +88,3 @@ function normalizeDateValue(value) {
   return String(value);
 }
 
-// Validation functions
-function validatePhone(value) {
-  if (!value) return true; // Optional field
-  // Remove all non-digit characters and check if what remains are all digits
-  const cleaned = value.toString().replace(/\D/g, '');
-  return /^\d+$/.test(cleaned) && cleaned.length >= 7 && cleaned.length <= 15;
-}
-
-function validateEmail(value) {
-  if (!value) return true; // Optional field
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(value);
-}
-
-function validateTextLength(value, minLength = 1, maxLength = 100) {
-  if (!value && minLength === 0) return true; // Optional and empty is OK
-  if (!value) return false; // Required but empty
-  const strValue = String(value);
-  return strValue.length >= minLength && strValue.length <= maxLength;
-}
-
-function validateNumericId(value) {
-  if (!value) return false; // ID is required
-  const numValue = Number(value);
-  return !isNaN(numValue) && numValue > 0 && Number.isInteger(numValue);
-}

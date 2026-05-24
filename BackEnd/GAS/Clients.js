@@ -1,41 +1,5 @@
 // Guardar datos en sheets
 function setClients(data) {
-  // Validate input data
-  if (!validateTextLength(data.nit, 1, 20)) {
-    return {
-      success: false,
-      message: 'NIT es requerido y debe tener entre 1 y 20 caracteres'
-    };
-  }
-  
-  if (!validateTextLength(data.nombre, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre es requerido y debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (!validateEmail(data.correo)) {
-    return {
-      success: false,
-      message: 'Correo electrónico es requerido y debe tener un formato válido'
-    };
-  }
-  
-  if (!validatePhone(data.telefono)) {
-    return {
-      success: false,
-      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
-    };
-  }
-  
-  if (!validateTextLength(data.direccion, 0, 200)) {
-    return {
-      success: false,
-      message: 'Dirección debe tener máximo 200 caracteres'
-    };
-  }
-  
   const fields = ['nit', 'nombre', 'correo', 'telefono', 'direccion'];
   const rowToAppend = [];
   
@@ -105,50 +69,7 @@ function setClients(data) {
 
 // Editar datos en sheets
 function editClients(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_cliente)) {
-    return {
-      success: false,
-      message: 'ID de cliente es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.nit !== undefined && !validateTextLength(data.nit, 1, 20)) {
-    return {
-      success: false,
-      message: 'NIT debe tener entre 1 y 20 caracteres'
-    };
-  }
-  
-  if (data.nombre !== undefined && !validateTextLength(data.nombre, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.correo !== undefined && !validateEmail(data.correo)) {
-    return {
-      success: false,
-      message: 'Correo electrónico debe tener un formato válido'
-    };
-  }
-  
-  if (data.telefono !== undefined && !validatePhone(data.telefono)) {
-    return {
-      success: false,
-      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
-    };
-  }
-  
-  if (data.direccion !== undefined && !validateTextLength(data.direccion, 0, 200)) {
-    return {
-      success: false,
-      message: 'Dirección debe tener máximo 200 caracteres'
-    };
-  }
-  
+
   const fields = ['nit', 'nombre', 'correo', 'telefono', 'direccion'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Clientes');
@@ -159,7 +80,8 @@ function editClients(data) {
   
   for (let i = 2; i <= lastRow; i++) {
     const cellId = sheet.getRange(i, 1).getValue();
-    if (cellId === +data.id_cliente) {
+    const nit = sheet.getRange(i, 2).getValue();
+    if (cellId == +data.id_cliente || nit == +data.nit) {
       targetRow = i;
       break;
     }
@@ -168,7 +90,7 @@ function editClients(data) {
   if (!targetRow) {
     return {
       success: false,
-      message: `No se encontró el cliente con ID: ${+data.id_cliente}`
+      message: data.id_cliente ? `No se encontró el cliente con ID: ${+data.id_cliente}` : `No se encontró el cliente con NIT: ${+data.nit}, la última fila leida de la db es ${lastRow}`
     };
   }
   
@@ -179,10 +101,10 @@ function editClients(data) {
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
     if (field === 'nit')   value = value ? String(value).trim() : '';
-    if (field === 'nombre')   value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre')   value = value ? String(value).trim() : '';
     if (field === 'correo')   value = value ? String(value).toLowerCase().trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
-    if (field === 'direccion') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'direccion') value = value ? String(value).trim() : '';
     
     sheet.getRange(targetRow, index + 2).setValue(value); // +2 porque col 1 es el ID
   });
@@ -204,7 +126,8 @@ function deleteClients(data) {
 
   for (let i = 2; i <= lastRow; i++) {
     const cellId = sheet.getRange(i, 1).getValue();
-    if (cellId === +data.id_cliente) {
+    const nit = sheet.getRange(i, 2).getValue();
+    if (cellId === +data.id_cliente || nit === +data.nit) {
       targetRow = i;
       break;
     }

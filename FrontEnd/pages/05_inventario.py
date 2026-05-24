@@ -4,6 +4,7 @@ from components.table import SmartTable
 from mock_data import robots_mock, proveedores_mock, inventario_mock
 from datetime import datetime
 import re
+from components.loading import LoadingOverlay, with_spinner
 
 # ──────────────────────────────────────────────────────────────────────
 # Funciones auxiliares y validaciones
@@ -88,6 +89,9 @@ def _eliminar_en_backend(codigo: str) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 def page(content_container):
     with content_container:
+        _loading = LoadingOverlay()
+        _loading.build()
+
         ui.label("Gestión de Inventario").classes("page-title")
         ui.label("Registro de existencias de robots").classes("page-subtitle").style(
             "margin-bottom: 24px;"
@@ -100,7 +104,7 @@ def page(content_container):
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
-            submit_callback=lambda: _registrar(form, tabla_inventario),
+            submit_callback=lambda: _registrar(form, tabla_inventario, _loading),
             submit_text="Registrar inventario",
             enable_validation=True,
             max_length=100,
@@ -190,7 +194,7 @@ def page(content_container):
             show_pagination=True,
             show_actions=True,
             action_buttons=acciones,
-            on_action=lambda accion, fila: _manejar_accion(accion, fila, tabla_inventario),
+            on_action=lambda accion, fila: _manejar_accion(accion, fila, tabla_inventario, _loading),
             row_key="codigo",
             max_height="500px",
             filterable=True,
@@ -200,7 +204,7 @@ def page(content_container):
 # ──────────────────────────────────────────────────────────────────────
 # Callbacks internos
 # ──────────────────────────────────────────────────────────────────────
-def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
+async def _registrar(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if not f.is_valid():
         ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
@@ -213,37 +217,40 @@ def _registrar(f: SmartForm, tabla_ref: SmartTable) -> None:
         ui.notify(f"Ya existe un item con código {codigo}", type="warning")
         return
 
-    nuevo = _registrar_en_backend({
-        "codigo": codigo,
-        "id_robot": id_robot,
-        "id_proveedor": nit_proveedor,
-        "precio": f.precio.value,
-        "stock": int(f.stock.value),
-        "fecha_registro": f.fecha.value,
-    })
+    def hacer():
+        nuevo = _registrar_en_backend({
+            "codigo": codigo,
+            "id_robot": id_robot,
+            "id_proveedor": nit_proveedor,
+            "precio": f.precio.value,
+            "stock": int(f.stock.value),
+            "fecha_registro": f.fecha.value,
+        })
+        ui.notify(
+            f"✅ Inventario registrado: {_nombre_robot(nuevo['id_robot'])} — Stock: {nuevo['stock']}",
+            type="positive",
+        )
+        f.codigo.value = ""
+        f.robot.value = None
+        f.proveedor.value = None
+        f.precio.value = 0
+        f.stock.value = 0
+        f.fecha.value = datetime.now().strftime("%Y-%m-%d")
+        f.clear_errors()
+        return nuevo
 
-    ui.notify(
-        f"✅ Inventario registrado: {_nombre_robot(nuevo['id_robot'])} — Stock: {nuevo['stock']}",
-        type="positive",
-    )
+    def refrescar():
+        tabla_ref.set_data(_construir_filas())
 
-    f.codigo.value = ""
-    f.robot.value = None
-    f.proveedor.value = None
-    f.precio.value = 0
-    f.stock.value = 0
-    f.fecha.value = datetime.now().strftime("%Y-%m-%d")
-    f.clear_errors()
+    await with_spinner(_loading, hacer, refresh=refrescar)
 
-    tabla_ref.set_data(_construir_filas())
-
-def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
+def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "editar":
-        _dialogo_edicion(fila, tabla_ref)
+        _dialogo_edicion(fila, tabla_ref, _loading)
     elif accion == "eliminar":
-        _dialogo_eliminar(fila, tabla_ref)
+        _dialogo_eliminar(fila, tabla_ref, _loading)
 
-def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
+def _dialogo_edicion(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar inventario — {fila['codigo']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 8px;"
@@ -271,7 +278,7 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
         with ui.row().classes("gap-2 mt-4 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
 
-            def guardar():
+            async def guardar():
                 if not inp_precio.value or inp_precio.value <= 0:
                     ui.notify("El precio debe ser mayor a cero", type="negative")
                     return
@@ -286,23 +293,30 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
                     return
 
                 nit_nuevo = inp_proveedor.value.split(" - ")[0].strip()
-                ok = _actualizar_en_backend(fila["codigo"], {
-                    "precio": inp_precio.value,
-                    "stock": int(inp_stock.value),
-                    "id_proveedor": nit_nuevo,
-                })
-                if ok:
-                    ui.notify(f"✅ Inventario {fila['codigo']} actualizado", type="positive")
+
+                def editar():
+                    ok = _actualizar_en_backend(fila["codigo"], {
+                        "precio": inp_precio.value,
+                        "stock": int(inp_stock.value),
+                        "id_proveedor": nit_nuevo,
+                    })
+                    if ok:
+                        ui.notify(f"✅ Inventario {fila['codigo']} actualizado", type="positive")
+                        dialogo.close()
+                    else:
+                        ui.notify("No se encontró el item para actualizar", type="negative")
+                    return ok
+
+                def refrescar():
                     tabla_ref.set_data(_construir_filas())
-                    dialogo.close()
-                else:
-                    ui.notify("No se encontró el item para actualizar", type="negative")
+
+                await with_spinner(_loading, editar, refresh=refrescar)
 
             ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
 
     dialogo.open()
 
-def _dialogo_eliminar(fila: dict, tabla_ref: SmartTable) -> None:
+def _dialogo_eliminar(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar item de inventario").classes("text-h6").style(
             "color: #F44336; margin-bottom: 8px;"
@@ -314,13 +328,21 @@ def _dialogo_eliminar(fila: dict, tabla_ref: SmartTable) -> None:
 
         with ui.row().classes("gap-2 justify-end"):
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
-            def confirmar():
-                ok = _eliminar_en_backend(fila["codigo"])
-                if ok:
-                    ui.notify(f"🗑️ Item {fila['codigo']} eliminado", type="positive")
+
+            async def confirmar():
+                def eliminar():
+                    ok = _eliminar_en_backend(fila["codigo"])
+                    if ok:
+                        ui.notify(f"🗑️ Item {fila['codigo']} eliminado", type="positive")
+                        dialogo.close()
+                    else:
+                        ui.notify("No se encontró el item para eliminar", type="negative")
+                    return ok
+
+                def refrescar():
                     tabla_ref.set_data(_construir_filas())
-                    dialogo.close()
-                else:
-                    ui.notify("No se encontró el item para eliminar", type="negative")
+
+                await with_spinner(_loading, eliminar, refresh=refrescar)
+
             ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
     dialogo.open()

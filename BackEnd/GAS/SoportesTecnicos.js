@@ -1,34 +1,5 @@
 // Guardar datos en sheets
 function setSoportesTecnicos(data) {
-  // Validate input data
-  if (!validateTextLength(data.problema, 1, 500)) {
-    return {
-      success: false,
-      message: 'Problema es requerido y debe tener entre 1 y 500 caracteres'
-    };
-  }
-  
-  if (!validateTextLength(data.estado, 1, 50)) {
-    return {
-      success: false,
-      message: 'Estado es requerido y debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
-  if (!validateNumericId(data.id_cliente)) {
-    return {
-      success: false,
-      message: 'ID de cliente es requerido y debe ser un número positivo'
-    };
-  }
-  
-  if (!validateNumericId(data.id_robot)) {
-    return {
-      success: false,
-      message: 'ID de robot es requerido y debe ser un número positivo'
-    };
-  }
-  
   const fields = ['problema', 'estado', 'id_cliente', 'id_robot'];
   const rowToAppend = [];
   
@@ -87,43 +58,6 @@ function setSoportesTecnicos(data) {
 
 // Editar datos en sheets
 function editSoportesTecnicos(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_soporte)) {
-    return {
-      success: false,
-      message: 'ID de soporte es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.problema !== undefined && !validateTextLength(data.problema, 1, 500)) {
-    return {
-      success: false,
-      message: 'Problema debe tener entre 1 y 500 caracteres'
-    };
-  }
-  
-  if (data.estado !== undefined && !validateTextLength(data.estado, 1, 50)) {
-    return {
-      success: false,
-      message: 'Estado debe tener entre 1 y 50 caracteres'
-    };
-  }
-  
-  if (data.id_cliente !== undefined && !validateNumericId(data.id_cliente)) {
-    return {
-      success: false,
-      message: 'ID de cliente debe ser un número positivo'
-    };
-  }
-  
-  if (data.id_robot !== undefined && !validateNumericId(data.id_robot)) {
-    return {
-      success: false,
-      message: 'ID de robot debe ser un número positivo'
-    };
-  }
-  
   const fields = ['problema', 'estado', 'id_cliente', 'id_robot'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Soportes_Tecnicos');

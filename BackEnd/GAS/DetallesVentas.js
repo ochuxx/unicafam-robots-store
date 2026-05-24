@@ -1,34 +1,5 @@
 // Guardar datos en sheets
 function setDetallesVentas(data) {
-  // Validate input data
-  if (data.cantidad !== undefined && (!validateNumericId(data.cantidad) || Number(data.cantidad) < 0)) {
-    return {
-      success: false,
-      message: 'Cantidad debe ser un número positivo'
-    };
-  }
-  
-  if (data.subtotal !== undefined && (!validateNumericId(data.subtotal) || Number(data.subtotal) < 0)) {
-    return {
-      success: false,
-      message: 'Subtotal debe ser un número positivo'
-    };
-  }
-  
-  if (!validateNumericId(data.id_venta)) {
-    return {
-      success: false,
-      message: 'ID de venta es requerido y debe ser un número positivo'
-    };
-  }
-  
-  if (!validateNumericId(data.id_inventario)) {
-    return {
-      success: false,
-      message: 'ID de inventario es requerido y debe ser un número positivo'
-    };
-  }
-  
   const fields = ['cantidad', 'subtotal', 'id_venta', 'id_inventario'];
   const rowToAppend = [];
   
@@ -84,43 +55,6 @@ function setDetallesVentas(data) {
 
 // Editar datos en sheets
 function editDetallesVentas(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_detalle)) {
-    return {
-      success: false,
-      message: 'ID de detalle es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.cantidad !== undefined && (!validateNumericId(data.cantidad) || Number(data.cantidad) < 0)) {
-    return {
-      success: false,
-      message: 'Cantidad debe ser un número positivo'
-    };
-  }
-  
-  if (data.subtotal !== undefined && (!validateNumericId(data.subtotal) || Number(data.subtotal) < 0)) {
-    return {
-      success: false,
-      message: 'Subtotal debe ser un número positivo'
-    };
-  }
-  
-  if (data.id_venta !== undefined && !validateNumericId(data.id_venta)) {
-    return {
-      success: false,
-      message: 'ID de venta debe ser un número positivo'
-    };
-  }
-  
-  if (data.id_inventario !== undefined && !validateNumericId(data.id_inventario)) {
-    return {
-      success: false,
-      message: 'ID de inventario debe ser un número positivo'
-    };
-  }
-  
   const fields = ['cantidad', 'subtotal', 'id_venta', 'id_inventario'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Detalles_Ventas');

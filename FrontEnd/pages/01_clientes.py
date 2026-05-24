@@ -1,12 +1,14 @@
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
+from components.loading import LoadingOverlay, with_spinner
 from datetime import date
 from mock_data import clientes_mock
 from dotenv import load_dotenv
 import os
 import re
 import requests
+import json
 
 load_dotenv()  # Carga variables de entorno desde .env
 GAS_URL = os.getenv("GAS_URL", "").strip()
@@ -20,9 +22,8 @@ def limpiar_fechas_clientes(lista_clientes: list) -> list:
             cliente["fecha_registro"] = fecha.isoformat()
         elif fecha is None:
             cliente["fecha_registro"] = ""
-    
-    if fecha.endswith("T00:00:00.000Z"):
-        cliente["fecha_registro"] = fecha[:10]
+        elif isinstance(fecha, str) and fecha.endswith("T00:00:00.000Z"):
+            cliente["fecha_registro"] = fecha[:10]
 
     return lista_clientes
 
@@ -47,7 +48,12 @@ def registrar_cliente_en_backend(datos: dict) -> dict:
         "direccion": datos["direccion"]
     }
 
-    response = requests.post(GAS_URL, json=payload, headers={"Content-Type": "application/json"}, timeout=60)
+    response = requests.post(
+        GAS_URL,
+        data=json.dumps(payload),
+        headers={"Content-Type": "application/json"},
+        timeout=60
+    )
     response.raise_for_status()
     data = response.json()
 
@@ -57,19 +63,57 @@ def registrar_cliente_en_backend(datos: dict) -> dict:
     return payload
 
 def actualizar_cliente_en_backend(nit_cliente: str, datos: dict) -> bool:
-    for i, cliente in enumerate(clientes_mock):
-        if cliente["nit"] == nit_cliente:
-            clientes_mock[i].update(datos)
-            return True
+    print(nit_cliente) 
+    if GAS_URL:
+        payload = {
+            "action": "edit_clientes",
+            "nit": str(nit_cliente),
+            "nombre": datos["nombre"],
+            "correo": datos["correo"],
+            "telefono": datos["telefono"],
+            "direccion": datos["direccion"]
+        }
+
+        response = requests.post(
+            GAS_URL,
+            data=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+            timeout=120
+        )
+
+        response.raise_for_status()
+        data = response.json()
+        print(data)
+
+        if not data.get("success"):
+            return False
+
+        return True
     return False
 
 def eliminar_cliente_en_backend(nit_cliente: str) -> bool:
-    global clientes_mock
-    longitud_anterior = len(clientes_mock)
-    clientes_mock[:] = [c for c in clientes_mock if c["nit"] != nit_cliente]
-    return len(clientes_mock) < longitud_anterior
+    if GAS_URL:
+        payload = {
+            "action": "delete_clientes",
+            "nit": str(nit_cliente)
+        }
 
-def obtener_clientes_desde_backend(limit: int = 10000, fields: list | None = None) -> list:
+        response = requests.post(
+            GAS_URL,
+            data=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+            timeout=120
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        if not data.get("success"):
+            return False
+        
+    return True
+
+def obtener_clientes_desde_backend(limit: int = 500, fields: list | None = None) -> list:
     if not GAS_URL:
         raise RuntimeError("GAS_URL no configurada")
 
@@ -93,6 +137,9 @@ def obtener_clientes_desde_backend(limit: int = 10000, fields: list | None = Non
 
 def page(content_container):
     with content_container:
+        _loading = LoadingOverlay()
+        _loading.build()
+
         if GAS_URL:
             try:
                 clientes_backend = obtener_clientes_desde_backend()
@@ -114,7 +161,7 @@ def page(content_container):
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
-            submit_callback=lambda: _registrar_cliente(form, tabla_clientes),
+            submit_callback=lambda: _registrar_cliente(form, tabla_clientes, _loading),
             submit_text="Guardar cliente",
             enable_validation=True,
             max_length=100,
@@ -181,20 +228,18 @@ def page(content_container):
             show_pagination=True,
             show_actions=True,
             action_buttons=acciones,
-            on_action=lambda accion, fila: _manejar_accion(accion, fila, tabla_clientes),
+            on_action=lambda accion, fila: _manejar_accion(accion, fila, tabla_clientes, _loading),
             row_key="nit",
             max_height="500px",
             filterable=True,
         )
         tabla_clientes.build()
 
-def _registrar_cliente(f: SmartForm, tabla_ref: SmartTable) -> None:
-    # Validar todos los campos del formulario
+async def _registrar_cliente(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if not f.is_valid():
         ui.notify("Corrige los errores marcados en el formulario", type="warning")
         return
 
-    # Datos del formulario (el NIT ya es string)
     datos = {
         "nit": f.nit.value.strip(),
         "nombre": f.nombre.value.strip(),
@@ -203,31 +248,43 @@ def _registrar_cliente(f: SmartForm, tabla_ref: SmartTable) -> None:
         "direccion": (f.direccion.value or "").strip()
     }
 
-    # Validación de negocio: NIT duplicado
     if any(c["nit"] == datos["nit"] for c in clientes_mock):
         ui.notify(f"Ya existe un cliente con NIT {datos['nit']}", type="warning")
         return
 
-    nuevo = registrar_cliente_en_backend(datos)
-    ui.notify(f"✅ Cliente {nuevo['nombre']} registrado (NIT {nuevo['nit']})", type="positive")
+    # Esta función correrá en un hilo seguro gracias a with_spinner
+    def registrar():
+        nuevo = registrar_cliente_en_backend(datos)
+        ui.notify(f"✅ Cliente {nuevo['nombre']} registrado con éxito", type="positive")
+        return nuevo
+    
+    # Esta función se ejecuta en el hilo principal de NiceGUI cuando el spinner termina con éxito
+    def refrescar():
+        # 1. Limpiamos los campos visualmente sin romper validaciones
+        f.nit.value = ""
+        f.nombre.value = ""
+        f.correo.value = ""
+        f.telefono.value = ""
+        f.direccion.value = ""
+        f.clear_errors()
 
-    # Limpiar formulario
-    f.nit.value = ""
-    f.nombre.value = ""
-    f.correo.value = ""
-    f.telefono.value = ""
-    f.direccion.value = ""
-    f.clear_errors()
+        # 2. Volvemos a consultar al Google Apps Script (actualiza clientes_mock internamente)
+        # obtener_clientes_desde_backend()
 
-    tabla_ref.set_data(list(clientes_mock))
+        # 3. Forzamos la reactividad de NiceGUI sobre los renglones de la tabla
+        # tabla_ref.rows = list(clientes_mock)
+        # tabla_ref.update()  # <-- Le dice al frontend de NiceGUI que redibuje la tabla sin recargar la página
 
-def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable) -> None:
+    # Ejecutamos con el cargador visual
+    await with_spinner(_loading, registrar, refresh=refrescar)
+
+def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "editar":
-        _abrir_dialogo_edicion(fila, tabla_ref)
+        _abrir_dialogo_edicion(fila, tabla_ref, _loading)
     elif accion == "eliminar":
-        _confirmar_eliminacion(fila, tabla_ref)
+        _confirmar_eliminacion(fila, tabla_ref, _loading)
 
-def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
+def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 480px; padding: 24px;"):
         ui.label(f"Editar cliente — {fila['nit']}").classes("text-h6").style(
             "color: var(--teal-light); margin-bottom: 16px;"
@@ -239,9 +296,10 @@ def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
         inp_direccion = ui.input("Dirección", value=fila.get("direccion", "")).classes("w-full")
 
         with ui.row().classes("gap-2 mt-4 justify-end"):
-            ui.button("Cancelar", on_click=dialogo.close).props("flat")
+            # Forzamos flat type=button para que cancelar no haga submit accidental
+            ui.button("Cancelar", on_click=dialogo.close).props("flat type=button")
 
-            def guardar():
+            async def guardar():
                 if not inp_nombre.value or not inp_correo.value:
                     ui.notify("Nombre y Correo son obligatorios", type="negative")
                     return
@@ -249,22 +307,34 @@ def _abrir_dialogo_edicion(fila: dict, tabla_ref: SmartTable) -> None:
                 datos_actualizados = {
                     "nombre": inp_nombre.value.strip(),
                     "correo": inp_correo.value.strip(),
-                    "telefono": (inp_telefono.value or "").strip(),
-                    "direccion": (inp_direccion.value or "").strip(),
+                    "telefono": str(inp_telefono.value or "").strip(),
+                    "direccion": str(inp_direccion.value or "").strip(),
                 }
-                ok = actualizar_cliente_en_backend(fila["nit"], datos_actualizados)
-                if ok:
-                    ui.notify(f"✅ Cliente {datos_actualizados['nombre']} actualizado", type="positive")
-                    tabla_ref.set_data(list(clientes_mock))
-                    dialogo.close()
-                else:
-                    ui.notify("No se encontró el cliente para actualizar", type="negative")
 
-            ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
+                # Función 1: Lógica pesada de red enviada al backend de Google
+                def editar():
+                    return actualizar_cliente_en_backend(fila["nit"], datos_actualizados)
+
+                # Función 2: Respuesta reactiva en la interfaz de NiceGUI
+                def refrescar():
+                    # Volvemos a traer los datos reales de Apps Script
+                    # obtener_clientes_desde_backend()
+                    # Actualizamos visualmente las filas de la tabla
+                    # tabla_ref.rows = list(clientes_mock)
+                    # tabla_ref.update()
+                    
+                    ui.notify(f"✅ Cliente {datos_actualizados['nombre']} actualizado", type="positive")
+                    dialogo.close()
+
+                # Ejecutamos con el cargador visual
+                await with_spinner(_loading, editar, refresh=refrescar)
+
+            # Forzamos unelevated type=button para el botón de guardar del diálogo
+            ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal type=button")
 
     dialogo.open()
 
-def _confirmar_eliminacion(fila: dict, tabla_ref: SmartTable) -> None:
+def _confirmar_eliminacion(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     with ui.dialog() as dialogo, ui.card().style("min-width: 360px; padding: 24px;"):
         ui.label("Eliminar cliente").classes("text-h6").style("color: #F44336; margin-bottom: 8px;")
         ui.label(
@@ -273,17 +343,27 @@ def _confirmar_eliminacion(fila: dict, tabla_ref: SmartTable) -> None:
         ).style("color: var(--text-main); margin-bottom: 16px;")
 
         with ui.row().classes("gap-2 justify-end"):
-            ui.button("Cancelar", on_click=dialogo.close).props("flat")
+            ui.button("Cancelar", on_click=dialogo.close).props("flat type=button")
 
-            def confirmar():
-                ok = eliminar_cliente_en_backend(fila["nit"])
-                if ok:
+            async def confirmar():
+                # Función 1: Se conecta al backend para borrar el registro
+                def eliminar():
+                    return eliminar_cliente_en_backend(fila["nit"])
+
+                # Función 2: Actualiza la tabla local de forma reactiva
+                def refrescar():
+                    # Volvemos a sincronizar la lista global con Google Sheets
+                    # obtener_clientes_desde_backend()
+                    # Pasamos los datos limpios a la tabla y actualizamos el componente
+                    # tabla_ref.rows = list(clientes_mock)
+                    # tabla_ref.update()
+                    
                     ui.notify(f"🗑️ Cliente {fila['nombre']} eliminado", type="positive")
-                    tabla_ref.set_data(list(clientes_mock))
                     dialogo.close()
-                else:
-                    ui.notify("No se encontró el cliente para eliminar", type="negative")
 
-            ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
+                # Ejecutamos con el cargador visual
+                await with_spinner(_loading, eliminar, refresh=refrescar)
+
+            ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red type=button")
 
     dialogo.open()

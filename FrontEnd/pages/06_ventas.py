@@ -6,6 +6,7 @@ Proporciona una interfaz para registrar nuevas ventas con múltiples productos
 from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
+from components.loading import LoadingOverlay, with_spinner
 from mock_data import (
     clientes_mock,
     empleados_mock,
@@ -160,6 +161,9 @@ def _dialogo_detalles_venta(fila: dict):
 # ----------------------------------------------------------------------
 def page(content_container):
     with content_container:
+        _loading = LoadingOverlay()
+        _loading.build()
+
         ui.label("Gestión de Ventas").classes("page-title")
         ui.label("Registro de transacciones con detalles").classes("page-subtitle").style("margin-bottom: 24px;")
 
@@ -261,10 +265,9 @@ def page(content_container):
             ui.button("➕ Agregar producto", on_click=_agregar_fila).props("flat").style("border: 1px solid var(--teal-mid);")
 
         # --- Botón Registrar venta (con validación) ---
-        def _guardar_venta():
+        async def _guardar_venta():
             global _contador_detalle
 
-            # Validar el formulario principal
             if not form.is_valid():
                 ui.notify("Corrige los errores marcados en el formulario", type="warning")
                 return
@@ -273,7 +276,6 @@ def page(content_container):
                 ui.notify("Debe agregar al menos un producto", type="negative")
                 return
 
-            # Validar cantidad > 0 y robot seleccionado en cada detalle
             for idx, data in _filas_detalle.items():
                 if data["robot"].value is None or data["robot"].value not in OPCIONES_ROBOT:
                     ui.notify(f"Error en producto: seleccione un robot válido", type="negative")
@@ -281,60 +283,56 @@ def page(content_container):
                 if data["cantidad"].value is None or data["cantidad"].value < 1:
                     ui.notify(f"Error en producto: la cantidad debe ser mayor a cero", type="negative")
                     return
-                # También podríamos verificar que el inventario exista
                 if data["id_inventario"] is None:
                     ui.notify(f"Error en producto: inventario no válido", type="negative")
                     return
 
             total_venta = sum((d["cantidad"].value or 0) * d["precio"] for d in _filas_detalle.values())
 
-            # Crear venta
-            nuevo_id_venta = _generar_id_venta()
-            nit_cliente = form.cliente.value.split(" - ")[0].strip()
-            id_empleado = int(form.empleado.value.split(" - ")[0].strip())
-            ventas_mock.append({
-                "id": nuevo_id_venta,
-                "fecha_venta": form.fecha.value,
-                "total": total_venta,
-                "id_cliente": nit_cliente,
-                "id_empleado": id_empleado,
-            })
-
-            # Crear detalles
-            for det in _filas_detalle.values():
-                id_inventario = det["id_inventario"]
-                cantidad = det["cantidad"].value
-                subtotal = cantidad * det["precio"]
-                nuevo_id_detalle = _generar_id_detalle_persistente()
-                detalle_ventas_mock.append({
-                    "id": nuevo_id_detalle,
-                    "id_venta": nuevo_id_venta,
-                    "id_inventario": id_inventario,
-                    "cantidad": cantidad,
-                    "subtotal": subtotal,
+            def hacer():
+                nonlocal total_venta
+                nuevo_id_venta = _generar_id_venta()
+                nit_cliente = form.cliente.value.split(" - ")[0].strip()
+                id_empleado = int(form.empleado.value.split(" - ")[0].strip())
+                ventas_mock.append({
+                    "id": nuevo_id_venta,
+                    "fecha_venta": form.fecha.value,
+                    "total": total_venta,
+                    "id_cliente": nit_cliente,
+                    "id_empleado": id_empleado,
                 })
+                for det in _filas_detalle.values():
+                    id_inventario = det["id_inventario"]
+                    cantidad = det["cantidad"].value
+                    subtotal = cantidad * det["precio"]
+                    nuevo_id_detalle = _generar_id_detalle_persistente()
+                    detalle_ventas_mock.append({
+                        "id": nuevo_id_detalle,
+                        "id_venta": nuevo_id_venta,
+                        "id_inventario": id_inventario,
+                        "cantidad": cantidad,
+                        "subtotal": subtotal,
+                    })
+                ui.notify(
+                    f"✅ Venta #{nuevo_id_venta} registrada — {len(_filas_detalle)} producto(s) — Total: ${total_venta:,.0f}".replace(",", "."),
+                    type="positive",
+                )
+                form.fecha.value = datetime.now().strftime("%Y-%m-%d")
+                form.cliente.value = None
+                form.empleado.value = None
+                form.clear_errors()
+                for data in list(_filas_detalle.values()):
+                    data["fila"].clear()
+                _filas_detalle.clear()
+                _contador_detalle = 0
+                return nuevo_id_venta
 
-            ui.notify(
-                f"✅ Venta #{nuevo_id_venta} registrada — {len(_filas_detalle)} producto(s) — Total: ${total_venta:,.0f}".replace(",", "."),
-                type="positive",
-            )
+            def refrescar():
+                tabla_ventas.set_data(_construir_filas())
+                total_general_label.set_text("Total general: $0")
+                ui.update()
 
-            # Reiniciar formulario
-            form.fecha.value = datetime.now().strftime("%Y-%m-%d")
-            form.cliente.value = None
-            form.empleado.value = None
-            form.clear_errors()
-
-            # Limpiar detalles
-            for data in list(_filas_detalle.values()):
-                data["fila"].clear()
-            _filas_detalle.clear()
-            _contador_detalle = 0
-
-            # Actualizar tabla y total
-            tabla_ventas.set_data(_construir_filas())
-            total_general_label.set_text("Total general: $0")
-            ui.update()
+            await with_spinner(_loading, hacer, refresh=refrescar)
 
         with ui.row().classes("justify-end mt-4"):
             ui.button("Registrar venta", on_click=_guardar_venta).props("unelevated").style("background: var(--teal-mid); color: white;")

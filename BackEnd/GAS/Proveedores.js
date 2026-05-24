@@ -1,34 +1,5 @@
 // Guardar datos en sheets
 function setProveedores(data) {
-  // Validate input data
-  if (!validateTextLength(data.nombre_empresa, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre de empresa es requerido y debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.contacto !== undefined && !validateTextLength(data.contacto, 0, 100)) {
-    return {
-      success: false,
-      message: 'Contacto debe tener máximo 100 caracteres'
-    };
-  }
-  
-  if (!validatePhone(data.telefono)) {
-    return {
-      success: false,
-      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
-    };
-  }
-  
-  if (!validateEmail(data.correo)) {
-    return {
-      success: false,
-      message: 'Correo electrónico es requerido y debe tener un formato válido'
-    };
-  }
-  
   const fields = ['nombre_empresa', 'contacto', 'telefono', 'correo'];
   const rowToAppend = [];
   
@@ -84,43 +55,6 @@ function setProveedores(data) {
 
 // Editar datos en sheets
 function editProveedores(data) {
-  // Validate ID
-  if (!validateNumericId(data.id_proveedor)) {
-    return {
-      success: false,
-      message: 'ID de proveedor es requerido y debe ser un número positivo'
-    };
-  }
-  
-  // Validate input data if provided
-  if (data.nombre_empresa !== undefined && !validateTextLength(data.nombre_empresa, 1, 100)) {
-    return {
-      success: false,
-      message: 'Nombre de empresa debe tener entre 1 y 100 caracteres'
-    };
-  }
-  
-  if (data.contacto !== undefined && !validateTextLength(data.contacto, 0, 100)) {
-    return {
-      success: false,
-      message: 'Contacto debe tener máximo 100 caracteres'
-    };
-  }
-  
-  if (data.telefono !== undefined && !validatePhone(data.telefono)) {
-    return {
-      success: false,
-      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
-    };
-  }
-  
-  if (data.correo !== undefined && !validateEmail(data.correo)) {
-    return {
-      success: false,
-      message: 'Correo electrónico debe tener un formato válido'
-    };
-  }
-  
   const fields = ['nombre_empresa', 'contacto', 'telefono', 'correo'];
   
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Proveedores');

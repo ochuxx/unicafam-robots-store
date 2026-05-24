@@ -63,13 +63,19 @@ class SmartForm:
             )
 
             if self.submit_callback or self.cancel_callback:
-                with ui.row().classes('mt-4 gap-2 justify-end'):
-                    if self.cancel_callback:
-                        ui.button(self.cancel_text, on_click=self.cancel_callback) \
-                          .props('flat').classes('text-white').style('background: transparent; border: 1px solid var(--teal-mid);')
-                    if self.submit_callback:
-                        ui.button(self.submit_text, on_click=self.submit_callback) \
-                          .props('unelevated').classes('text-white').style('background: var(--teal-mid);')
+                            with ui.row().classes('mt-4 gap-2 justify-end'):
+                                if self.cancel_callback:
+                                    ui.button(self.cancel_text, on_click=self.cancel_callback) \
+                                    .props('flat type=button') \
+                                    .classes('text-white') \
+                                    .style('background: transparent; border: 1px solid var(--teal-mid);')
+                                
+                                if self.submit_callback:
+                                    # AGREGAMOS type=button explícito en los props para bloquear cualquier submit nativo del navegador
+                                    ui.button(self.submit_text, on_click=self.submit_callback) \
+                                    .props('unelevated type=button') \
+                                    .classes('text-white') \
+                                    .style('background: var(--teal-mid);')
         return self.container
 
     def add_field(
