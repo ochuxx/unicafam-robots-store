@@ -34,9 +34,9 @@ function setRobots(data) {
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
     // Personaliza las transformaciones según el campo
-    if (field === 'nombre_robot') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre_robot') value = value ? String(value).trim() : '';
     if (field === 'descripcion')  value = value ? String(value).trim() : '';
-    if (field === 'tipo') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'tipo') value = value ? String(value).trim() : '';
     
     rowToAppend.push(value);
   });
@@ -82,9 +82,9 @@ function editRobots(data) {
     
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
-    if (field === 'nombre_robot') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre_robot') value = value ? String(value).trim() : '';
     if (field === 'descripcion')  value = value ? String(value).trim() : '';
-    if (field === 'tipo') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'tipo') value = value ? String(value).trim() : '';
     
     sheet.getRange(targetRow, index + 2).setValue(value); // +2 porque col 1 es el ID
   });

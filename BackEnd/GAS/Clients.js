@@ -38,7 +38,7 @@ function setClients(data) {
       value = value ? String(value).trim() : '';
     }
     if (field === 'nombre') {
-      value = value ? String(value).toUpperCase().trim() : '';
+      value = value ? String(value).trim() : '';
     }
     if (field === 'correo') {
       value = value ? String(value).toLowerCase().trim() : '';
@@ -47,7 +47,7 @@ function setClients(data) {
       value = value ? String(value).trim() : '';
     }
     if (field === 'direccion') {
-      value = value ? String(value).toUpperCase().trim() : '';
+      value = value ? String(value).trim() : '';
     }
     
     rowToAppend.push(value);
