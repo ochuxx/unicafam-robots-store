@@ -1,5 +1,27 @@
 // Guardar datos en sheets
 function setRobots(data) {
+  // Validate input data
+  if (!validateTextLength(data.nombre_robot, 1, 100)) {
+    return {
+      success: false,
+      message: 'Nombre del robot es requerido y debe tener entre 1 y 100 caracteres'
+    };
+  }
+  
+  if (data.descripcion !== undefined && !validateTextLength(data.descripcion, 0, 500)) {
+    return {
+      success: false,
+      message: 'Descripción debe tener máximo 500 caracteres'
+    };
+  }
+  
+  if (!validateTextLength(data.tipo, 1, 50)) {
+    return {
+      success: false,
+      message: 'Tipo es requerido y debe tener entre 1 y 50 caracteres'
+    };
+  }
+  
   const fields = ['nombre_robot', 'descripcion', 'tipo'];
   const rowToAppend = [];
   
@@ -37,7 +59,7 @@ function setRobots(data) {
     if (field === 'nombre_robot') value = value ? String(value).toUpperCase().trim() : '';
     if (field === 'descripcion')  value = value ? String(value).trim() : '';
     if (field === 'tipo') value = value ? String(value).toUpperCase().trim() : '';
-
+    
     rowToAppend.push(value);
   });
   
@@ -54,13 +76,43 @@ function setRobots(data) {
 
 // Editar datos en sheets
 function editRobots(data) {
+  // Validate ID
+  if (!validateNumericId(data.id_robot)) {
+    return {
+      success: false,
+      message: 'ID de robot es requerido y debe ser un número positivo'
+    };
+  }
+  
+  // Validate input data if provided
+  if (data.nombre_robot !== undefined && !validateTextLength(data.nombre_robot, 1, 100)) {
+    return {
+      success: false,
+      message: 'Nombre del robot debe tener entre 1 y 100 caracteres'
+    };
+  }
+  
+  if (data.descripcion !== undefined && !validateTextLength(data.descripcion, 0, 500)) {
+    return {
+      success: false,
+      message: 'Descripción debe tener máximo 500 caracteres'
+    };
+  }
+  
+  if (data.tipo !== undefined && !validateTextLength(data.tipo, 1, 50)) {
+    return {
+      success: false,
+      message: 'Tipo debe tener entre 1 y 50 caracteres'
+    };
+  }
+  
   const fields = ['nombre_robot', 'descripcion', 'tipo'];
-
+  
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Robots');
-
+  
   const lastRow = sheet.getLastRow();
   let targetRow = null;
-
+  
   for (let i = 2; i <= lastRow; i++) {
     const cellId = sheet.getRange(i, 1).getValue();
     if (cellId === +data.id_robot) {
@@ -68,31 +120,31 @@ function editRobots(data) {
       break;
     }
   }
-
+  
   if (!targetRow) {
     return {
       success: false,
-      message: `No se encontró el cliente con ID: ${+data.id_robot}`
+      message: `No se encontró el robot con ID: ${+data.id_robot}`
     };
   }
-
-  // Procesar y actualizar cada campo (columnas 2 a 6)
+  
+  // Procesar y actualizar cada campo (columnas 2 a 4)
   fields.forEach((field, index) => {
     if (data[field] === undefined) return;
-
+    
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
-
+    
     if (field === 'nombre_robot') value = value ? String(value).toUpperCase().trim() : '';
     if (field === 'descripcion')  value = value ? String(value).trim() : '';
     if (field === 'tipo') value = value ? String(value).toUpperCase().trim() : '';
-
+    
     sheet.getRange(targetRow, index + 2).setValue(value); // +2 porque col 1 es el ID
   });
-
+  
   return {
     success: true,
     id: data.id_robot,
-    message: `Cliente con ID ${data.id_robot} actualizado exitosamente`
+    message: `Robot con ID ${data.id_robot} actualizado exitosamente`
   };
 }
 
@@ -125,5 +177,38 @@ function deleteRobots(data) {
     success: true,
     id: data.id_robot,
     message: `Cliente con ID ${data.id_robot} eliminado exitosamente`
+  };
+}
+
+
+// Obtener datos desde sheets
+function getRobots(data) {
+  const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Robots');
+  const params = normalizeGetParams(data);
+  const defaultFields = ['id', 'nombre', 'descripcion', 'tipo'];
+
+  let records = sheetToObjects(sheet).map(mapRobotRecord);
+
+  if (params.limit) {
+    records = records.slice(0, params.limit);
+  }
+
+  const fields = params.fields.length ? params.fields : defaultFields;
+  records = applyFieldSelection(records, fields);
+
+  return {
+    success: true,
+    data: records
+  };
+}
+
+function mapRobotRecord(record) {
+  const id = record.id || record.id_robot || record['id_robot'];
+
+  return {
+    id: id !== undefined && id !== null ? String(id).trim() : '',
+    nombre: record.nombre || record.nombre_robot || '',
+    descripcion: record.descripcion || '',
+    tipo: record.tipo || ''
   };
 }

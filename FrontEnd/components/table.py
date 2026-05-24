@@ -56,7 +56,7 @@ class SmartTable:
         :param table_id: Identificador único para la tabla (se genera automáticamente si no se da).
         """
         self.columns = columns
-        self.original_data = data or []
+        self.original_data = list(data) if data else []
         self.rows_per_page = rows_per_page
         self.title = title
         self.subtitle = subtitle
@@ -308,8 +308,14 @@ class SmartTable:
     def _push_to_table(self):
         if self.table is None:
             return
-        self.table.rows = self.filtered_data
-        self.table.pagination = {**self.table.pagination, "page": 1}
+        # Modificar _props directamente SIN disparar update() individual
+        self.table._props['rows'] = list(self.filtered_data)
+        self.table._props['pagination'] = {
+            **self.table._props.get('pagination', {}),
+            'page': 1
+        }
+        # Un solo update() para ambos cambios
+        self.table.update()
 
     def refresh(self):
         """Re-aplica filtros y empuja los datos al frontend."""
@@ -318,5 +324,5 @@ class SmartTable:
 
     def set_data(self, new_data: List[Dict]):
         """Reemplaza el conjunto de datos completo y refresca la tabla."""
-        self.original_data = new_data
+        self.original_data = list(new_data) if new_data else []
         self.refresh()

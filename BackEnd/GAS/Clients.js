@@ -1,6 +1,42 @@
 // Guardar datos en sheets
 function setClients(data) {
-  const fields = ['cedula', 'nombre', 'correo', 'telefono', 'direccion'];
+  // Validate input data
+  if (!validateTextLength(data.nit, 1, 20)) {
+    return {
+      success: false,
+      message: 'NIT es requerido y debe tener entre 1 y 20 caracteres'
+    };
+  }
+  
+  if (!validateTextLength(data.nombre, 1, 100)) {
+    return {
+      success: false,
+      message: 'Nombre es requerido y debe tener entre 1 y 100 caracteres'
+    };
+  }
+  
+  if (!validateEmail(data.correo)) {
+    return {
+      success: false,
+      message: 'Correo electrónico es requerido y debe tener un formato válido'
+    };
+  }
+  
+  if (!validatePhone(data.telefono)) {
+    return {
+      success: false,
+      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
+    };
+  }
+  
+  if (!validateTextLength(data.direccion, 0, 200)) {
+    return {
+      success: false,
+      message: 'Dirección debe tener máximo 200 caracteres'
+    };
+  }
+  
+  const fields = ['nit', 'nombre', 'correo', 'telefono', 'direccion'];
   const rowToAppend = [];
   
   // Generar ID autoincremental
@@ -34,7 +70,7 @@ function setClients(data) {
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
     // Personaliza las transformaciones según el campo
-    if (field === 'cedula') {
+    if (field === 'nit') {
       value = value ? String(value).trim() : '';
     }
     if (field === 'nombre') {
@@ -49,7 +85,7 @@ function setClients(data) {
     if (field === 'direccion') {
       value = value ? String(value).toUpperCase().trim() : '';
     }
-
+    
     rowToAppend.push(value);
   });
   
@@ -69,14 +105,58 @@ function setClients(data) {
 
 // Editar datos en sheets
 function editClients(data) {
-  const fields = ['cedula', 'nombre', 'correo', 'telefono', 'direccion'];
-
+  // Validate ID
+  if (!validateNumericId(data.id_cliente)) {
+    return {
+      success: false,
+      message: 'ID de cliente es requerido y debe ser un número positivo'
+    };
+  }
+  
+  // Validate input data if provided
+  if (data.nit !== undefined && !validateTextLength(data.nit, 1, 20)) {
+    return {
+      success: false,
+      message: 'NIT debe tener entre 1 y 20 caracteres'
+    };
+  }
+  
+  if (data.nombre !== undefined && !validateTextLength(data.nombre, 1, 100)) {
+    return {
+      success: false,
+      message: 'Nombre debe tener entre 1 y 100 caracteres'
+    };
+  }
+  
+  if (data.correo !== undefined && !validateEmail(data.correo)) {
+    return {
+      success: false,
+      message: 'Correo electrónico debe tener un formato válido'
+    };
+  }
+  
+  if (data.telefono !== undefined && !validatePhone(data.telefono)) {
+    return {
+      success: false,
+      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
+    };
+  }
+  
+  if (data.direccion !== undefined && !validateTextLength(data.direccion, 0, 200)) {
+    return {
+      success: false,
+      message: 'Dirección debe tener máximo 200 caracteres'
+    };
+  }
+  
+  const fields = ['nit', 'nombre', 'correo', 'telefono', 'direccion'];
+  
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Clientes');
-
+  
   // Buscar la fila por id_cliente (columna 1)
   const lastRow = sheet.getLastRow();
   let targetRow = null;
-
+  
   for (let i = 2; i <= lastRow; i++) {
     const cellId = sheet.getRange(i, 1).getValue();
     if (cellId === +data.id_cliente) {
@@ -84,29 +164,29 @@ function editClients(data) {
       break;
     }
   }
-
+  
   if (!targetRow) {
     return {
       success: false,
       message: `No se encontró el cliente con ID: ${+data.id_cliente}`
     };
   }
-
+  
   // Procesar y actualizar cada campo (columnas 2 a 6)
   fields.forEach((field, index) => {
     if (data[field] === undefined) return;
-
+    
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
-
-    if (field === 'cedula')   value = value ? String(value).trim() : '';
+    
+    if (field === 'nit')   value = value ? String(value).trim() : '';
     if (field === 'nombre')   value = value ? String(value).toUpperCase().trim() : '';
     if (field === 'correo')   value = value ? String(value).toLowerCase().trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     if (field === 'direccion') value = value ? String(value).toUpperCase().trim() : '';
-
+    
     sheet.getRange(targetRow, index + 2).setValue(value); // +2 porque col 1 es el ID
   });
-
+  
   return {
     success: true,
     id: data.id_cliente,
@@ -143,5 +223,53 @@ function deleteClients(data) {
     success: true,
     id: data.id_cliente,
     message: `Cliente con ID ${data.id_cliente} eliminado exitosamente`
+  };
+}
+
+
+// Obtener datos desde sheets
+function getClients(data) {
+  const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Clientes');
+  const params = normalizeGetParams(data);
+  const defaultFields = ['nit', 'nombre', 'correo', 'telefono', 'direccion', 'fecha_registro'];
+
+  let records = sheetToObjects(sheet).map(mapClientRecord);
+
+  if (params.limit) {
+    records = records.slice(0, params.limit);
+  }
+
+  const fields = params.fields.length ? params.fields : defaultFields;
+  records = applyFieldSelection(records, fields);
+
+  return {
+    success: true,
+    data: records
+  };
+}
+
+function mapClientRecord(record) {
+  const nit = record.nit || record.cedula || record.NIT || record.id_cliente || record.id;
+  
+  // Busca la fecha en múltiples posibles nombres de columna (insensible a mayúsculas/minúsculas)
+  let fecha = null;
+  const possibleDateKeys = [
+    'fecha_registro'
+  ];
+  
+  for (const key of possibleDateKeys) {
+    if (record.hasOwnProperty(key) && record[key] !== null && record[key] !== undefined) {
+      fecha = record[key];
+      break;
+    }
+  }
+
+  return {
+    nit: nit !== undefined && nit !== null ? String(nit).trim() : '',
+    nombre: record.nombre || '',
+    correo: record.correo || '',
+    telefono: record.telefono || '',
+    direccion: record.direccion || '',
+    fecha_registro: record.fecha_registro || fecha || ''
   };
 }

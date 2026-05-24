@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram name="Página-1" id="sR1Ps0EO85C2Zj-pyHuZ">
-    <mxGraphModel dx="1873" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="1600" math="0" shadow="0">
+    <mxGraphModel dx="2112" dy="945" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="1600" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -51,7 +51,7 @@
             <mxRectangle height="30" width="40" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="Y5IUEeJ_wVfOLRzL_cmU-27" parent="Y5IUEeJ_wVfOLRzL_cmU-25" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;overflow=hidden;whiteSpace=wrap;html=1;" value="cedula" vertex="1">
+        <mxCell id="Y5IUEeJ_wVfOLRzL_cmU-27" parent="Y5IUEeJ_wVfOLRzL_cmU-25" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;overflow=hidden;whiteSpace=wrap;html=1;" value="nit" vertex="1">
           <mxGeometry height="30" width="110" x="40" as="geometry">
             <mxRectangle height="30" width="110" as="alternateBounds" />
           </mxGeometry>

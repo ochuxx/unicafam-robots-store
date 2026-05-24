@@ -1,5 +1,34 @@
 // Guardar datos en sheets
 function setProveedores(data) {
+  // Validate input data
+  if (!validateTextLength(data.nombre_empresa, 1, 100)) {
+    return {
+      success: false,
+      message: 'Nombre de empresa es requerido y debe tener entre 1 y 100 caracteres'
+    };
+  }
+  
+  if (data.contacto !== undefined && !validateTextLength(data.contacto, 0, 100)) {
+    return {
+      success: false,
+      message: 'Contacto debe tener máximo 100 caracteres'
+    };
+  }
+  
+  if (!validatePhone(data.telefono)) {
+    return {
+      success: false,
+      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
+    };
+  }
+  
+  if (!validateEmail(data.correo)) {
+    return {
+      success: false,
+      message: 'Correo electrónico es requerido y debe tener un formato válido'
+    };
+  }
+  
   const fields = ['nombre_empresa', 'contacto', 'telefono', 'correo'];
   const rowToAppend = [];
   
@@ -38,7 +67,7 @@ function setProveedores(data) {
     if (field === 'contacto') value = value ? String(value).toUpperCase().trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     if (field === 'correo') value = value ? String(value).toLowerCase().trim() : '';
-
+    
     rowToAppend.push(value);
   });
   
@@ -55,13 +84,50 @@ function setProveedores(data) {
 
 // Editar datos en sheets
 function editProveedores(data) {
+  // Validate ID
+  if (!validateNumericId(data.id_proveedor)) {
+    return {
+      success: false,
+      message: 'ID de proveedor es requerido y debe ser un número positivo'
+    };
+  }
+  
+  // Validate input data if provided
+  if (data.nombre_empresa !== undefined && !validateTextLength(data.nombre_empresa, 1, 100)) {
+    return {
+      success: false,
+      message: 'Nombre de empresa debe tener entre 1 y 100 caracteres'
+    };
+  }
+  
+  if (data.contacto !== undefined && !validateTextLength(data.contacto, 0, 100)) {
+    return {
+      success: false,
+      message: 'Contacto debe tener máximo 100 caracteres'
+    };
+  }
+  
+  if (data.telefono !== undefined && !validatePhone(data.telefono)) {
+    return {
+      success: false,
+      message: 'Teléfono debe contener solo números y tener entre 7 y 15 dígitos'
+    };
+  }
+  
+  if (data.correo !== undefined && !validateEmail(data.correo)) {
+    return {
+      success: false,
+      message: 'Correo electrónico debe tener un formato válido'
+    };
+  }
+  
   const fields = ['nombre_empresa', 'contacto', 'telefono', 'correo'];
-
+  
   const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Proveedores');
-
+  
   const lastRow = sheet.getLastRow();
   let targetRow = null;
-
+  
   for (let i = 2; i <= lastRow; i++) {
     const cellId = sheet.getRange(i, 1).getValue();
     if (cellId === +data.id_proveedor) {
@@ -69,28 +135,28 @@ function editProveedores(data) {
       break;
     }
   }
-
+  
   if (!targetRow) {
     return {
       success: false,
       message: `No se encontró el proveedor con ID: ${+data.id_proveedor}`
     };
   }
-
+  
   // Procesar y actualizar cada campo (columnas 2 a 5)
   fields.forEach((field, index) => {
     if (data[field] === undefined) return;
-
+    
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
-
+    
     if (field === 'nombre_empresa') value = value ? String(value).toUpperCase().trim() : '';
     if (field === 'contacto') value = value ? String(value).toUpperCase().trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     if (field === 'correo') value = value ? String(value).toLowerCase().trim() : '';
-
+    
     sheet.getRange(targetRow, index + 2).setValue(value); // +2 porque col 1 es el ID
   });
-
+  
   return {
     success: true,
     id: data.id_proveedor,
@@ -127,5 +193,39 @@ function deleteProveedores(data) {
     success: true,
     id: data.id_proveedor,
     message: `Proveedor con ID ${data.id_proveedor} eliminado exitosamente`
+  };
+}
+
+
+// Obtener datos desde sheets
+function getProveedores(data) {
+  const sheet = SpreadsheetApp.openById(googleSheetsRef).getSheetByName('Proveedores');
+  const params = normalizeGetParams(data);
+  const defaultFields = ['nit', 'nombre_empresa', 'contacto', 'telefono', 'correo'];
+
+  let records = sheetToObjects(sheet).map(mapProveedorRecord);
+
+  if (params.limit) {
+    records = records.slice(0, params.limit);
+  }
+
+  const fields = params.fields.length ? params.fields : defaultFields;
+  records = applyFieldSelection(records, fields);
+
+  return {
+    success: true,
+    data: records
+  };
+}
+
+function mapProveedorRecord(record) {
+  const nit = record.nit || record.id_proveedor || record['id_proveedor'] || record.NIT;
+
+  return {
+    nit: nit !== undefined && nit !== null ? String(nit).trim() : '',
+    nombre_empresa: record.nombre_empresa || '',
+    contacto: record.contacto || '',
+    telefono: record.telefono || '',
+    correo: record.correo || ''
   };
 }

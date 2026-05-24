@@ -40,14 +40,30 @@ def cargar_pagina(section_name: str):
 def main():
     apply_global_styles()
     content_container = ui.column().classes("main-content")
+
     def render_section(section_name: str):
         content_container.clear()
-        pagina_func = cargar_pagina(section_name)
-        if pagina_func:
-            pagina_func(content_container)
-        else:
-            with content_container:
-                ui.label(f"Sección '{section_name}' no encontrada").classes("text-red")
+        
+        # 1. Mostrar el spinner
+        with content_container:
+            ui.spinner('dots', size='xl', color='teal').classes('q-mt-xl')
+            ui.label('Cargando sección...').classes('text-teal-4 q-mt-md')
+
+        # 2. EL TRUCO: Usamos un timer de 0.1 segundos.
+        # Esto le da tiempo al navegador para renderizar el spinner ANTES
+        # de que Python comience a procesar la carga pesada de la página.
+        def cargar_contenido():
+            content_container.clear()
+            pagina_func = cargar_pagina(section_name)
+            if pagina_func:
+                pagina_func(content_container)
+            else:
+                with content_container:
+                    ui.label(f"Sección '{section_name}' no encontrada").classes("text-red")
+            timer.deactivate() # Detenemos el timer para que no se ejecute más veces
+
+        timer = ui.timer(0.1, cargar_contenido, once=True)
+
     create_sidebar_layout(render_section)
     render_section('monitoreo')
 

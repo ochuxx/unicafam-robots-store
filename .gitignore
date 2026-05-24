@@ -9,9 +9,13 @@ concept.py
 **/*.drawio.bkp
 **/*.drawio.dtmp
 **/__pycache__/
+**/*drawio.bkp*
 
 # Others
 .venv/
 BackEnd/GAS/secrets.js
 BackEnd/GAS/appsscript.json
 BackEnd/GAS/.clasp.json
+
+# Sensibles
+FrontEnd/.env
