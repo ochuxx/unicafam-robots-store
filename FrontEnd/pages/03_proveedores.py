@@ -242,7 +242,7 @@ async def _registrar_proveedor(f: SmartForm, tabla_ref: SmartTable, _loading: Lo
     async def refrescar():
         await _recargar_proveedores_async(tabla_ref)
 
-    await with_spinner(_loading, hacer, refresh=refrescar)
+    await with_spinner(_loading, hacer, refresh=refrescar, loading_after_action=True)
 
 def _manejar_accion_proveedor(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "editar":
@@ -287,7 +287,7 @@ def _abrir_dialogo_edicion_proveedor(fila: dict, tabla_ref: SmartTable, _loading
                 async def refrescar():
                     await _recargar_proveedores_async(tabla_ref)
 
-                await with_spinner(_loading, editar, refresh=refrescar)
+                await with_spinner(_loading, editar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
 
@@ -318,7 +318,7 @@ def _confirmar_eliminacion_proveedor(fila: dict, tabla_ref: SmartTable, _loading
                 async def refrescar():
                     await _recargar_proveedores_async(tabla_ref)
 
-                await with_spinner(_loading, eliminar, refresh=refrescar)
+                await with_spinner(_loading, eliminar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
 

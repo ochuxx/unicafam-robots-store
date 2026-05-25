@@ -570,7 +570,7 @@ def page(content_container):
                 total_general_label.set_text("Total general: $0")
                 ui.update()
 
-            await with_spinner(_loading, hacer, refresh=refrescar)
+            await with_spinner(_loading, hacer, refresh=refrescar, loading_after_action=True)
 
         with ui.row().classes("justify-end mt-4"):
             ui.button("Registrar venta", on_click=_guardar_venta).props("unelevated").style("background: var(--teal-mid); color: white;")

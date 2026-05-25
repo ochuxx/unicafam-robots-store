@@ -227,7 +227,7 @@ async def _registrar_robot(f: SmartForm, tabla_ref: SmartTable, _loading: Loadin
     async def refrescar():
         await _recargar_robots_async(tabla_ref)
 
-    await with_spinner(_loading, hacer, refresh=refrescar)
+    await with_spinner(_loading, hacer, refresh=refrescar, loading_after_action=True)
 
 def _manejar_accion_robot(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "editar":
@@ -269,7 +269,7 @@ def _abrir_dialogo_edicion_robot(fila: dict, tabla_ref: SmartTable, _loading: Lo
                 async def refrescar():
                     await _recargar_robots_async(tabla_ref)
 
-                await with_spinner(_loading, editar, refresh=refrescar)
+                await with_spinner(_loading, editar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
     dialogo.open()
@@ -296,7 +296,7 @@ def _confirmar_eliminacion_robot(fila: dict, tabla_ref: SmartTable, _loading: Lo
                 async def refrescar():
                     await _recargar_robots_async(tabla_ref)
 
-                await with_spinner(_loading, eliminar, refresh=refrescar)
+                await with_spinner(_loading, eliminar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
     dialogo.open()

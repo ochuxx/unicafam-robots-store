@@ -341,7 +341,7 @@ async def _registrar(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverl
         else:
             tabla_ref.set_data(_construir_filas())
 
-    await with_spinner(_loading, hacer, refresh=refrescar)
+    await with_spinner(_loading, hacer, refresh=refrescar, loading_after_action=True)
 
 def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "editar":
@@ -421,7 +421,7 @@ def _dialogo_edicion(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay
                     else:
                         tabla_ref.set_data(_construir_filas())
 
-                await with_spinner(_loading, editar, refresh=refrescar)
+                await with_spinner(_loading, editar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Guardar cambios", on_click=guardar).props("unelevated color=teal")
 
@@ -453,7 +453,7 @@ def _dialogo_eliminar(fila: dict, tabla_ref: SmartTable, _loading: LoadingOverla
                     else:
                         tabla_ref.set_data(_construir_filas())
 
-                await with_spinner(_loading, eliminar, refresh=refrescar)
+                await with_spinner(_loading, eliminar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Sí, eliminar", on_click=confirmar).props("unelevated color=red")
     dialogo.open()

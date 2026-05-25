@@ -36,13 +36,20 @@ async def with_spinner(
     *,
     refresh=None,
     delay: float = 0.05,
+    loading_after_action: bool = False,
 ):
     loading.show()
     await asyncio.sleep(delay)
     try:
         result = action() if not asyncio.iscoroutinefunction(action) else await action()
+        if loading_after_action:
+            loading.show()
+            await asyncio.sleep(delay)
         if refresh:
-            refresh()
+            if asyncio.iscoroutinefunction(refresh):
+                await refresh()
+            else:
+                refresh()
         return result
     finally:
         loading.hide()

@@ -326,7 +326,7 @@ async def _registrar(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverl
         else:
             tabla_ref.set_data(_construir_filas())
 
-    await with_spinner(_loading, hacer, refresh=refrescar)
+    await with_spinner(_loading, hacer, refresh=refrescar, loading_after_action=True)
 
 def _manejar_accion(accion: str, fila: dict, tabla_ref: SmartTable, _loading: LoadingOverlay) -> None:
     if accion == "cambiar_estado":
@@ -368,7 +368,7 @@ def _dialogo_cambiar_estado(fila: dict, tabla_ref: SmartTable, _loading: Loading
                     else:
                         tabla_ref.set_data(_construir_filas())
 
-                await with_spinner(_loading, editar, refresh=refrescar)
+                await with_spinner(_loading, editar, refresh=refrescar, loading_after_action=True)
 
             ui.button("Guardar cambio", on_click=guardar).props("unelevated color=teal")
     dialogo.open()
