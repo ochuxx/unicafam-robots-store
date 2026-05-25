@@ -17,39 +17,44 @@ from mock_data import (
 )
 from datetime import datetime
 import re
+from dotenv import load_dotenv
+import os
+import requests
+import json
+import asyncio
+
+load_dotenv()
+GAS_URL = os.getenv("GAS_URL", "").strip()
 
 # ----------------------------------------------------------------------
 # Datos auxiliares (mapeos, opciones, catálogos)
 # ----------------------------------------------------------------------
-_CLIENTES_POR_NIT = {c["nit"]: c for c in clientes_mock}
-_EMPLEADOS_POR_ID = {e["id"]: e for e in empleados_mock}
-_INVENTARIO_POR_ID = {i["id"]: i for i in inventario_mock}
-_ROBOTS_POR_ID = {r["id"]: r for r in robots_mock}
+_CLIENTES_POR_NIT: dict = {}
+_EMPLEADOS_POR_ID: dict = {}
+_INVENTARIO_POR_ID: dict = {}
+_ROBOTS_POR_ID: dict = {}
 
-OPCIONES_CLIENTE = [f"{c['nit']} - {c['nombre']}" for c in clientes_mock]
-OPCIONES_EMPLEADO = [f"{e['id']} - {e['nombre']}" for e in empleados_mock]
+OPCIONES_CLIENTE: list = []
+OPCIONES_EMPLEADO: list = []
+OPCIONES_ROBOT: list = []
+_ROBOTS_POR_OPCION: dict = {}
 
-# Catálogo de robots únicos (basado en el inventario)
-_CATALOGO_ROBOTS = []
-_vistos = set()
-for inv in inventario_mock:
-    rid = inv["id_robot"]
-    if rid not in _vistos:
-        robot = _ROBOTS_POR_ID.get(rid)
-        if robot:
-            _CATALOGO_ROBOTS.append({
-                "id_robot": robot["id"],
-                "nombre": robot["nombre"],
-                "precio": inv["precio"],
-                "id_inventario": inv["id"],
-            })
-            _vistos.add(rid)
+def _reconstruir_catalogos():
+    _CLIENTES_POR_NIT.clear()
+    _CLIENTES_POR_NIT.update({c["nit"]: c for c in clientes_mock})
+    _EMPLEADOS_POR_ID.clear()
+    _EMPLEADOS_POR_ID.update({e["id"]: e for e in empleados_mock})
+    _INVENTARIO_POR_ID.clear()
+    _INVENTARIO_POR_ID.update({i["id"]: i for i in inventario_mock})
+    _ROBOTS_POR_ID.clear()
+    _ROBOTS_POR_ID.update({r["id"]: r for r in robots_mock})
 
-OPCIONES_ROBOT = [
-    f"{r['id_robot']} - {r['nombre']} (${r['precio']:,.0f})".replace(",", ".")
-    for r in _CATALOGO_ROBOTS
-]
-_ROBOTS_POR_OPCION = {opc: r for opc, r in zip(OPCIONES_ROBOT, _CATALOGO_ROBOTS)}
+    OPCIONES_CLIENTE[:] = [f"{c['nit']} - {c['nombre']}" for c in clientes_mock]
+    OPCIONES_EMPLEADO[:] = [f"{e['id']} - {e['nombre']}" for e in empleados_mock]
+
+    OPCIONES_ROBOT[:] = [f"{r['id']} - {r['nombre']}" for r in robots_mock]
+    _ROBOTS_POR_OPCION.clear()
+    _ROBOTS_POR_OPCION.update({o: r["id"] for o, r in zip(OPCIONES_ROBOT, robots_mock)})
 
 # ----------------------------------------------------------------------
 # Funciones de validación personalizada
@@ -157,12 +162,230 @@ def _dialogo_detalles_venta(fila: dict):
     dialog.open()
 
 # ----------------------------------------------------------------------
+# Operaciones de backend (conexión a Google Apps Script)
+# ----------------------------------------------------------------------
+def registrar_venta_en_backend(datos: dict) -> dict:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+
+    payload = {
+        "action": "set_ventas",
+        "id_cliente": datos["id_cliente"],
+        "id_empleado": datos["id_empleado"],
+        "total": datos["total"],
+    }
+
+    response = requests.post(
+        GAS_URL,
+        data=json.dumps(payload),
+        headers={"Content-Type": "application/json"},
+        timeout=60
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al registrar venta"))
+
+    return data
+
+def registrar_detalle_venta_en_backend(datos: dict) -> dict:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+
+    payload = {
+        "action": "set_detalles_ventas",
+        "id_venta": datos["id_venta"],
+        "id_inventario": datos["id_inventario"],
+        "cantidad": datos["cantidad"],
+        "subtotal": datos["subtotal"],
+    }
+
+    response = requests.post(
+        GAS_URL,
+        data=json.dumps(payload),
+        headers={"Content-Type": "application/json"},
+        timeout=60
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al registrar detalle de venta"))
+
+    return data
+
+def obtener_ventas_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+
+    payload = {
+        "action": "get_ventas",
+        "n": limit,
+    }
+
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener ventas"))
+
+    return data.get("data", [])
+
+def obtener_detalles_ventas_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+
+    payload = {
+        "action": "get_detalles_ventas",
+        "n": limit,
+    }
+
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener detalles de ventas"))
+
+    return data.get("data", [])
+
+def _obtener_clientes_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_clientes", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener clientes"))
+    global clientes_mock
+    data_list = data.get("data", [])
+    if data_list:
+        clientes_mock[:] = data_list
+    return data_list
+
+def _obtener_empleados_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_empleados", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener empleados"))
+    global empleados_mock
+    data_list = data.get("data", [])
+    if data_list:
+        empleados_mock[:] = data_list
+    return data_list
+
+def _obtener_inventario_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_inventarios", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener inventarios"))
+    global inventario_mock
+    data_list = data.get("data", [])
+    if data_list:
+        inventario_mock[:] = data_list
+    return data_list
+
+def _obtener_robots_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_robots", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener robots"))
+    global robots_mock
+    data_list = data.get("data", [])
+    if data_list:
+        robots_mock[:] = data_list
+    return data_list
+
+def _recargar_ventas_desde_backend(tabla_ref: SmartTable) -> None:
+    if GAS_URL:
+        try:
+            _obtener_clientes_desde_backend()
+            _obtener_empleados_desde_backend()
+            _obtener_inventario_desde_backend()
+            _obtener_robots_desde_backend()
+            ventas = obtener_ventas_desde_backend()
+            if ventas:
+                ventas_mock[:] = ventas
+            detalles = obtener_detalles_ventas_desde_backend()
+            if detalles:
+                detalle_ventas_mock[:] = detalles
+        except Exception:
+            ui.notify("No se pudo sincronizar con Apps Script; usando datos locales", type="warning")
+    _reconstruir_catalogos()
+    tabla_ref.set_data(_construir_filas())
+
+async def _recargar_ventas_async(tabla_ref: SmartTable) -> None:
+    if GAS_URL:
+        try:
+            await asyncio.to_thread(_obtener_clientes_desde_backend)
+            await asyncio.to_thread(_obtener_empleados_desde_backend)
+            await asyncio.to_thread(_obtener_inventario_desde_backend)
+            await asyncio.to_thread(_obtener_robots_desde_backend)
+            ventas = await asyncio.to_thread(obtener_ventas_desde_backend)
+            if ventas:
+                ventas_mock[:] = ventas
+            detalles = await asyncio.to_thread(obtener_detalles_ventas_desde_backend)
+            if detalles:
+                detalle_ventas_mock[:] = detalles
+        except Exception:
+            ui.notify("No se pudo sincronizar con Apps Script; usando datos locales", type="warning")
+    _reconstruir_catalogos()
+    tabla_ref.set_data(_construir_filas())
+
+# ----------------------------------------------------------------------
 # Página principal
 # ----------------------------------------------------------------------
 def page(content_container):
     with content_container:
         _loading = LoadingOverlay()
         _loading.build()
+
+        if GAS_URL:
+            async def _cargar():
+                _loading.show()
+                await asyncio.sleep(0.05)
+                try:
+                    await asyncio.to_thread(_obtener_clientes_desde_backend)
+                    await asyncio.to_thread(_obtener_empleados_desde_backend)
+                    await asyncio.to_thread(_obtener_inventario_desde_backend)
+                    await asyncio.to_thread(_obtener_robots_desde_backend)
+                    ventas = await asyncio.to_thread(obtener_ventas_desde_backend)
+                    if ventas:
+                        ventas_mock[:] = ventas
+                    detalles = await asyncio.to_thread(obtener_detalles_ventas_desde_backend)
+                    if detalles:
+                        detalle_ventas_mock[:] = detalles
+                except Exception:
+                    ui.notify("No se pudieron cargar datos desde Apps Script", type="warning")
+                finally:
+                    _reconstruir_catalogos()
+                    form.cliente.options = list(OPCIONES_CLIENTE)
+                    form.empleado.options = list(OPCIONES_EMPLEADO)
+                    form.cliente.update()
+                    form.empleado.update()
+                    for det in _filas_detalle.values():
+                        det["robot"].options = list(OPCIONES_ROBOT)
+                        det["robot"].update()
+                    tabla_ventas.set_data(_construir_filas())
+                    _loading.hide()
+            ui.timer(0.1, lambda: asyncio.ensure_future(_cargar()), once=True)
+        else:
+            _reconstruir_catalogos()
 
         ui.label("Gestión de Ventas").classes("page-title")
         ui.label("Registro de transacciones con detalles").classes("page-subtitle").style("margin-bottom: 24px;")
@@ -174,7 +397,6 @@ def page(content_container):
             enable_validation=True, max_length=100
         )
         form.build()
-        form.fecha = form.add_field("date", "Fecha de venta", value=datetime.now().strftime("%Y-%m-%d"), required=True)
         form.cliente = form.add_field("select", "Cliente", options=OPCIONES_CLIENTE, required=True, validation=validar_seleccion_cliente)
         form.cliente.props("use-input input-debounce=300 fill-input hide-selected")
         form.empleado = form.add_field("select", "Empleado responsable", options=OPCIONES_EMPLEADO, required=True, validation=validar_seleccion_empleado)
@@ -206,18 +428,32 @@ def page(content_container):
             _filas_detalle.pop(idx, None)
             _actualizar_total()
 
+        def _info_robot_desde_inventario(rid: str) -> dict:
+            rid_clean = str(rid).strip()
+            for i in inventario_mock:
+                inv_rid = i.get("id_robot")
+                if inv_rid is None:
+                    continue
+                try:
+                    if float(inv_rid) == float(rid_clean):
+                        return {"precio": i.get("precio", 0), "id_inventario": i.get("id")}
+                except (ValueError, TypeError):
+                    if str(inv_rid).strip() == rid_clean:
+                        return {"precio": i.get("precio", 0), "id_inventario": i.get("id")}
+            return {"precio": 0, "id_inventario": None}
+
         def _actualizar_precio(idx: int):
             data = _filas_detalle.get(idx)
             if not data:
                 return
             seleccion = data["robot"].value
-            robot_info = _ROBOTS_POR_OPCION.get(seleccion)
-            if robot_info:
-                data["precio"] = robot_info["precio"]
-                data["id_inventario"] = robot_info["id_inventario"]
+            if seleccion:
+                rid = _ROBOTS_POR_OPCION.get(seleccion)
+                info = _info_robot_desde_inventario(rid) if rid else {"precio": 0, "id_inventario": None}
             else:
-                data["precio"] = 0
-                data["id_inventario"] = None
+                info = {"precio": 0, "id_inventario": None}
+            data["precio"] = info["precio"]
+            data["id_inventario"] = info["id_inventario"]
             _actualizar_subtotal(idx)
 
         def _agregar_fila():
@@ -245,10 +481,11 @@ def page(content_container):
                     precio_inicial = 0
                     id_inventario_inicial = None
                     if OPCIONES_ROBOT:
-                        robot_info = _ROBOTS_POR_OPCION.get(OPCIONES_ROBOT[0])
-                        if robot_info:
-                            precio_inicial = robot_info["precio"]
-                            id_inventario_inicial = robot_info["id_inventario"]
+                        rid0 = _ROBOTS_POR_OPCION.get(OPCIONES_ROBOT[0])
+                        if rid0:
+                            info = _info_robot_desde_inventario(rid0)
+                            precio_inicial = info["precio"]
+                            id_inventario_inicial = info["id_inventario"]
 
                     _filas_detalle[nuevo_id] = {
                         "fila": fila,
@@ -289,35 +526,36 @@ def page(content_container):
 
             total_venta = sum((d["cantidad"].value or 0) * d["precio"] for d in _filas_detalle.values())
 
-            def hacer():
+            async def hacer():
                 nonlocal total_venta
-                nuevo_id_venta = _generar_id_venta()
                 nit_cliente = form.cliente.value.split(" - ")[0].strip()
-                id_empleado = int(form.empleado.value.split(" - ")[0].strip())
-                ventas_mock.append({
-                    "id": nuevo_id_venta,
-                    "fecha_venta": form.fecha.value,
-                    "total": total_venta,
-                    "id_cliente": nit_cliente,
-                    "id_empleado": id_empleado,
-                })
+                id_empleado = form.empleado.value.split(" - ")[0].strip()
+                result = await asyncio.to_thread(
+                    registrar_venta_en_backend,
+                    {
+                        "id_cliente": nit_cliente,
+                        "id_empleado": id_empleado,
+                        "total": total_venta,
+                    }
+                )
+                nuevo_id_venta = result.get("id", "")
                 for det in _filas_detalle.values():
                     id_inventario = det["id_inventario"]
                     cantidad = det["cantidad"].value
                     subtotal = cantidad * det["precio"]
-                    nuevo_id_detalle = _generar_id_detalle_persistente()
-                    detalle_ventas_mock.append({
-                        "id": nuevo_id_detalle,
-                        "id_venta": nuevo_id_venta,
-                        "id_inventario": id_inventario,
-                        "cantidad": cantidad,
-                        "subtotal": subtotal,
-                    })
+                    await asyncio.to_thread(
+                        registrar_detalle_venta_en_backend,
+                        {
+                            "id_venta": nuevo_id_venta,
+                            "id_inventario": id_inventario,
+                            "cantidad": cantidad,
+                            "subtotal": subtotal,
+                        }
+                    )
                 ui.notify(
                     f"✅ Venta #{nuevo_id_venta} registrada — {len(_filas_detalle)} producto(s) — Total: ${total_venta:,.0f}".replace(",", "."),
                     type="positive",
                 )
-                form.fecha.value = datetime.now().strftime("%Y-%m-%d")
                 form.cliente.value = None
                 form.empleado.value = None
                 form.clear_errors()
@@ -327,8 +565,8 @@ def page(content_container):
                 _contador_detalle = 0
                 return nuevo_id_venta
 
-            def refrescar():
-                tabla_ventas.set_data(_construir_filas())
+            async def refrescar():
+                await _recargar_ventas_async(tabla_ventas)
                 total_general_label.set_text("Total general: $0")
                 ui.update()
 

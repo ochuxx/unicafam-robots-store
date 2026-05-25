@@ -5,10 +5,25 @@ from mock_data import clientes_mock, robots_mock, soporte_mock
 from datetime import datetime
 import re
 from components.loading import LoadingOverlay, with_spinner
+from dotenv import load_dotenv
+import os
+import requests
+import json
+import asyncio
+
+load_dotenv()
+GAS_URL = os.getenv("GAS_URL", "").strip()
 
 ESTADOS_TICKET = ["Abierto", "En progreso", "Resuelto", "Cerrado"]
-OPCIONES_CLIENTE = [f"{c['nit']} - {c['nombre']}" for c in clientes_mock]
-OPCIONES_ROBOT = [f"{r['id']} - {r['nombre']}" for r in robots_mock]
+OPCIONES_CLIENTE: list = []
+OPCIONES_ROBOT: list = []
+
+def _reconstruir_catalogos():
+    OPCIONES_CLIENTE[:] = [f"{c['nit']} - {c['nombre']}" for c in clientes_mock]
+    OPCIONES_ROBOT[:] = [f"{r['id']} - {r['nombre']}" for r in robots_mock]
+
+def _catalogos_desde_mock():
+    _reconstruir_catalogos()
 
 # ----------------------------------------------------------------------
 # Funciones de validación personalizada
@@ -42,28 +57,6 @@ def validar_problema(valor):
 def _siguiente_id() -> int:
     return max((t["id"] for t in soporte_mock), default=0) + 1
 
-def registrar_ticket(datos: dict) -> dict:
-    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-    nuevo = {
-        "id": _siguiente_id(),
-        "fecha_reporte": fecha_hoy,
-        "fecha_actualizacion": fecha_hoy,
-        "problema": datos["problema"],
-        "estado": "Abierto",
-        "id_cliente": datos["id_cliente"],
-        "id_robot": datos["id_robot"],
-    }
-    soporte_mock.append(nuevo)
-    return nuevo
-
-def actualizar_estado(id_ticket: int, nuevo_estado: str) -> bool:
-    for ticket in soporte_mock:
-        if ticket["id"] == id_ticket:
-            ticket["estado"] = nuevo_estado
-            ticket["fecha_actualizacion"] = datetime.today().strftime("%Y-%m-%d")
-            return True
-    return False
-
 def _nombre_cliente(nit: str) -> str:
     c = next((c for c in clientes_mock if c["nit"] == nit), None)
     return f"{nit} - {c['nombre']}" if c else nit
@@ -88,12 +81,134 @@ def _construir_filas() -> list:
     ]
 
 # ----------------------------------------------------------------------
+# Operaciones de backend (conexión a Google Apps Script)
+# ----------------------------------------------------------------------
+def registrar_soporte_en_backend(datos: dict) -> dict:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {
+        "action": "set_soportes_tecnicos",
+        "id_cliente": datos["id_cliente"],
+        "id_robot": datos["id_robot"],
+        "problema": datos["problema"],
+    }
+    response = requests.post(GAS_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"}, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al registrar soporte"))
+    return data
+
+def actualizar_soporte_en_backend(id_soporte: str, datos: dict) -> dict:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "edit_soportes_tecnicos", "id_soporte": id_soporte}
+    payload.update(datos)
+    response = requests.post(GAS_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"}, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al actualizar soporte"))
+    return data
+
+def obtener_soportes_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_soportes_tecnicos", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener soportes"))
+    return data.get("data", [])
+
+def _obtener_clientes_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_clientes", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener clientes"))
+    global clientes_mock
+    data_list = data.get("data", [])
+    if data_list:
+        clientes_mock[:] = data_list
+    return data_list
+
+def _obtener_robots_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_robots", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener robots"))
+    global robots_mock
+    data_list = data.get("data", [])
+    if data_list:
+        robots_mock[:] = data_list
+    return data_list
+
+def _recargar_soportes_desde_backend(tabla_ref: SmartTable) -> None:
+    if GAS_URL:
+        try:
+            _obtener_clientes_desde_backend()
+            _obtener_robots_desde_backend()
+            soportes = obtener_soportes_desde_backend()
+            if soportes:
+                soporte_mock[:] = soportes
+        except Exception:
+            ui.notify("No se pudo sincronizar con Apps Script; usando datos locales", type="warning")
+    _reconstruir_catalogos()
+    tabla_ref.set_data(_construir_filas())
+
+async def _recargar_soportes_async(tabla_ref: SmartTable) -> None:
+    if GAS_URL:
+        try:
+            await asyncio.to_thread(_obtener_clientes_desde_backend)
+            await asyncio.to_thread(_obtener_robots_desde_backend)
+            soportes = await asyncio.to_thread(obtener_soportes_desde_backend)
+            if soportes:
+                soporte_mock[:] = soportes
+        except Exception:
+            ui.notify("No se pudo sincronizar con Apps Script; usando datos locales", type="warning")
+    _reconstruir_catalogos()
+    tabla_ref.set_data(_construir_filas())
+
+# ----------------------------------------------------------------------
 # Página principal
 # ----------------------------------------------------------------------
 def page(content_container):
     with content_container:
         _loading = LoadingOverlay()
         _loading.build()
+
+        if GAS_URL:
+            async def _cargar():
+                _loading.show()
+                await asyncio.sleep(0.05)
+                try:
+                    await asyncio.to_thread(_obtener_clientes_desde_backend)
+                    await asyncio.to_thread(_obtener_robots_desde_backend)
+                    soportes = await asyncio.to_thread(obtener_soportes_desde_backend)
+                    if soportes:
+                        soporte_mock[:] = soportes
+                except Exception:
+                    ui.notify("No se pudieron cargar datos desde Apps Script", type="warning")
+                finally:
+                    _reconstruir_catalogos()
+                    form.cliente.options = list(OPCIONES_CLIENTE)
+                    form.robot.options = list(OPCIONES_ROBOT)
+                    form.cliente.update()
+                    form.robot.update()
+                    tabla.set_data(_construir_filas())
+                    _loading.hide()
+            ui.timer(0.1, lambda: asyncio.ensure_future(_cargar()), once=True)
+        else:
+            _catalogos_desde_mock()
 
         ui.label("Gestión de Soporte Técnico").classes("page-title")
         ui.label("Registro y seguimiento de solicitudes").classes("page-subtitle").style("margin-bottom: 24px;")
@@ -109,14 +224,12 @@ def page(content_container):
         )
         form.build()
 
-        # Fecha (obligatoria)
         form.fecha = form.add_field(
             "date", "Fecha del reporte",
             value=datetime.now().strftime("%Y-%m-%d"),
             required=True
         )
 
-        # Cliente (obligatorio, validación de selección)
         form.cliente = form.add_field(
             "select", "Cliente",
             options=OPCIONES_CLIENTE,
@@ -126,7 +239,6 @@ def page(content_container):
         form.cliente.props("use-input input-debounce=300 fill-input hide-selected")
         form.cliente.props('input-maxlength=80')
 
-        # Robot (obligatorio, validación de selección)
         form.robot = form.add_field(
             "select", "Robot",
             options=OPCIONES_ROBOT,
@@ -136,7 +248,6 @@ def page(content_container):
         form.robot.props("use-input input-debounce=300 fill-input hide-selected")
         form.robot.props('input-maxlength=80')
 
-        # Problema (textarea obligatorio con validación de longitud)
         form.problema = form.add_field(
             "textarea", "Problema reportado",
             rows=4,
@@ -185,23 +296,42 @@ async def _registrar(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverl
     nit_cliente = f.cliente.value.split(" - ")[0].strip()
     id_robot = f.robot.value.split(" - ")[0].strip()
 
-    def hacer():
-        nuevo = registrar_ticket({
-            "fecha_reporte": f.fecha.value,
-            "problema": f.problema.value.strip(),
-            "id_cliente": nit_cliente,
-            "id_robot": id_robot,
-        })
-        ui.notify(f"✅ Solicitud #{nuevo['id']} registrada — Estado: Abierto", type="positive", position="top")
+    async def hacer():
+        if GAS_URL:
+            result = await asyncio.to_thread(
+                registrar_soporte_en_backend,
+                {
+                    "id_cliente": nit_cliente,
+                    "id_robot": id_robot,
+                    "problema": f.problema.value.strip(),
+                }
+            )
+            nuevo_id = result.get("id", "")
+        else:
+            nuevo_id = _siguiente_id()
+            fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+            soporte_mock.append({
+                "id": nuevo_id,
+                "fecha_reporte": fecha_hoy,
+                "fecha_actualizacion": fecha_hoy,
+                "problema": f.problema.value.strip(),
+                "estado": "Abierto",
+                "id_cliente": nit_cliente,
+                "id_robot": id_robot,
+            })
+        ui.notify(f"✅ Solicitud #{nuevo_id} registrada — Estado: Abierto", type="positive", position="top")
         f.fecha.value = datetime.now().strftime("%Y-%m-%d")
         f.cliente.value = None
         f.robot.value = None
         f.problema.value = ""
         f.clear_errors()
-        return nuevo
+        return nuevo_id
 
-    def refrescar():
-        tabla_ref.set_data(_construir_filas())
+    async def refrescar():
+        if GAS_URL:
+            await _recargar_soportes_async(tabla_ref)
+        else:
+            tabla_ref.set_data(_construir_filas())
 
     await with_spinner(_loading, hacer, refresh=refrescar)
 
@@ -223,17 +353,27 @@ def _dialogo_cambiar_estado(fila: dict, tabla_ref: SmartTable, _loading: Loading
                     ui.notify("Selecciona un estado", type="negative")
                     return
 
-                def editar():
-                    ok = actualizar_estado(fila["id"], sel_estado.value)
-                    if ok:
-                        ui.notify(f"✅ Ticket #{fila['id']} → {sel_estado.value} (actualizado: {datetime.today().strftime('%Y-%m-%d')})", type="positive")
-                        dialogo.close()
+                async def editar():
+                    if GAS_URL:
+                        await asyncio.to_thread(
+                            actualizar_soporte_en_backend,
+                            str(fila["id"]),
+                            {"estado": sel_estado.value}
+                        )
                     else:
-                        ui.notify("No se encontró el ticket", type="negative")
-                    return ok
+                        for ticket in soporte_mock:
+                            if ticket["id"] == fila["id"]:
+                                ticket["estado"] = sel_estado.value
+                                ticket["fecha_actualizacion"] = datetime.today().strftime("%Y-%m-%d")
+                                break
+                    ui.notify(f"✅ Ticket #{fila['id']} → {sel_estado.value} (actualizado: {datetime.today().strftime('%Y-%m-%d')})", type="positive")
+                    dialogo.close()
 
-                def refrescar():
-                    tabla_ref.set_data(_construir_filas())
+                async def refrescar():
+                    if GAS_URL:
+                        await _recargar_soportes_async(tabla_ref)
+                    else:
+                        tabla_ref.set_data(_construir_filas())
 
                 await with_spinner(_loading, editar, refresh=refrescar)
 
