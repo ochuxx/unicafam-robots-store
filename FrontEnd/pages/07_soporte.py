@@ -224,12 +224,6 @@ def page(content_container):
         )
         form.build()
 
-        form.fecha = form.add_field(
-            "date", "Fecha del reporte",
-            value=datetime.now().strftime("%Y-%m-%d"),
-            required=True
-        )
-
         form.cliente = form.add_field(
             "select", "Cliente",
             options=OPCIONES_CLIENTE,
@@ -320,7 +314,6 @@ async def _registrar(f: SmartForm, tabla_ref: SmartTable, _loading: LoadingOverl
                 "id_robot": id_robot,
             })
         ui.notify(f"✅ Solicitud #{nuevo_id} registrada — Estado: Abierto", type="positive", position="top")
-        f.fecha.value = datetime.now().strftime("%Y-%m-%d")
         f.cliente.value = None
         f.robot.value = None
         f.problema.value = ""

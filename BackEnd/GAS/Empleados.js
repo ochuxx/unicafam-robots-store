@@ -34,8 +34,8 @@ function setEmpleados(data) {
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
     // Personaliza las transformaciones según el campo
-    if (field === 'nombre') value = value ? String(value).toUpperCase().trim() : '';
-    if (field === 'cargo') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre') value = value ? String(value).trim() : '';
+    if (field === 'cargo') value = value ? String(value).trim() : '';
     if (field === 'correo') value = value ? String(value).toLowerCase().trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     
@@ -83,8 +83,8 @@ function editEmpleados(data) {
     
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
-    if (field === 'nombre') value = value ? String(value).toUpperCase().trim() : '';
-    if (field === 'cargo') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre') value = value ? String(value).trim() : '';
+    if (field === 'cargo') value = value ? String(value).trim() : '';
     if (field === 'correo') value = value ? String(value).toLowerCase().trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     

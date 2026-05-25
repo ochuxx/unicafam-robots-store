@@ -2,26 +2,26 @@ from nicegui import ui
 from components.forms import SmartForm
 from components.table import SmartTable
 from mock_data import proveedores_mock
-import re
 from components.loading import LoadingOverlay, with_spinner
+from dotenv import load_dotenv
+import os
+import requests
+import json
+import asyncio
 
-# ──────────────────────────────────────────────────────────────────────
-# Función de validación personalizada para el NIT (solo dígitos)
-# ──────────────────────────────────────────────────────────────────────
-def solo_digitos_nit(valor):
-    """Valida que el NIT contenga solo dígitos (sin guiones, puntos ni espacios)."""
-    if not valor:
-        return True
-    if not re.match(r'^\d+$', valor):
-        return "El NIT solo puede contener números (sin puntos, guiones ni espacios)"
-    return True
+load_dotenv()
+GAS_URL = os.getenv("GAS_URL", "").strip()
 
 # ──────────────────────────────────────────────────────────────────────
 # Operaciones de backend (mock)
 # ──────────────────────────────────────────────────────────────────────
-def registrar_proveedor_en_backend(datos: dict) -> dict:
+def _siguiente_nit() -> str:
+    nums = [int(p["nit"]) for p in proveedores_mock if p["nit"].isdigit()]
+    return str(max(nums, default=900000000) + 1)
+
+def registrar_proveedor_en_backend_local(datos: dict) -> dict:
     nuevo_proveedor = {
-        "nit":            datos["nit"],
+        "nit":            _siguiente_nit(),
         "nombre_empresa": datos["nombre_empresa"],
         "contacto":       datos["contacto"],
         "telefono":       datos["telefono"],
@@ -30,18 +30,82 @@ def registrar_proveedor_en_backend(datos: dict) -> dict:
     proveedores_mock.append(nuevo_proveedor)
     return nuevo_proveedor
 
-def actualizar_proveedor_en_backend(nit_proveedor: str, datos: dict) -> bool:
+def actualizar_proveedor_en_backend_local(nit_proveedor: str, datos: dict) -> bool:
     for i, prov in enumerate(proveedores_mock):
         if prov["nit"] == nit_proveedor:
             proveedores_mock[i].update(datos)
             return True
     return False
 
-def eliminar_proveedor_en_backend(nit_proveedor: str) -> bool:
+def eliminar_proveedor_en_backend_local(nit_proveedor: str) -> bool:
     global proveedores_mock
     longitud_anterior = len(proveedores_mock)
     proveedores_mock[:] = [p for p in proveedores_mock if p["nit"] != nit_proveedor]
     return len(proveedores_mock) < longitud_anterior
+
+# ──────────────────────────────────────────────────────────────────────
+# Operaciones de backend (conexión a Google Apps Script)
+# ──────────────────────────────────────────────────────────────────────
+def registrar_proveedor_en_backend(datos: dict) -> dict:
+    if not GAS_URL:
+        return registrar_proveedor_en_backend_local(datos)
+    payload = {
+        "action": "set_proveedores",
+        "nombre_empresa": datos["nombre_empresa"],
+        "contacto": datos["contacto"],
+        "telefono": datos["telefono"],
+        "correo": datos["correo"],
+    }
+    response = requests.post(GAS_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"}, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al registrar proveedor"))
+    return data
+
+def actualizar_proveedor_en_backend(nit_proveedor: str, datos: dict) -> bool:
+    if not GAS_URL:
+        return actualizar_proveedor_en_backend_local(nit_proveedor, datos)
+    payload = {"action": "edit_proveedores", "id_proveedor": nit_proveedor}
+    payload.update(datos)
+    response = requests.post(GAS_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"}, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al actualizar proveedor"))
+    return True
+
+def eliminar_proveedor_en_backend(nit_proveedor: str) -> bool:
+    if not GAS_URL:
+        return eliminar_proveedor_en_backend_local(nit_proveedor)
+    payload = {"action": "delete_proveedores", "id_proveedor": nit_proveedor}
+    response = requests.post(GAS_URL, data=json.dumps(payload), headers={"Content-Type": "application/json"}, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al eliminar proveedor"))
+    return True
+
+def obtener_proveedores_desde_backend(limit: int = 500) -> list:
+    if not GAS_URL:
+        raise RuntimeError("GAS_URL no configurada")
+    payload = {"action": "get_proveedores", "n": limit}
+    response = requests.post(GAS_URL, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("success"):
+        raise RuntimeError(data.get("message", "Error al obtener proveedores"))
+    return data.get("data", [])
+
+async def _recargar_proveedores_async(tabla_ref: SmartTable) -> None:
+    if GAS_URL:
+        try:
+            proveedores = await asyncio.to_thread(obtener_proveedores_desde_backend)
+            if proveedores:
+                proveedores_mock[:] = proveedores
+        except Exception:
+            ui.notify("No se pudo sincronizar con Apps Script; usando datos locales", type="warning")
+    tabla_ref.set_data(proveedores_mock)
 
 # ──────────────────────────────────────────────────────────────────────
 # Página principal
@@ -50,6 +114,21 @@ def page(content_container):
     with content_container:
         _loading = LoadingOverlay()
         _loading.build()
+
+        if GAS_URL:
+            async def _cargar():
+                _loading.show()
+                await asyncio.sleep(0.05)
+                try:
+                    proveedores = await asyncio.to_thread(obtener_proveedores_desde_backend)
+                    if proveedores:
+                        proveedores_mock[:] = proveedores
+                except Exception:
+                    ui.notify("No se pudieron cargar datos desde Apps Script", type="warning")
+                finally:
+                    tabla_proveedores.set_data(proveedores_mock)
+                    _loading.hide()
+            ui.timer(0.1, lambda: asyncio.ensure_future(_cargar()), once=True)
 
         ui.label("Gestión de Proveedores").classes("page-title")
         ui.label("Registro de empresas proveedoras de robots").classes("page-subtitle").style(
@@ -60,26 +139,15 @@ def page(content_container):
             "color: var(--teal-light);"
         )
 
-        # Formulario con validación manual
         form = SmartForm(
             title="", subtitle="",
             padding="20px", gap="16px", columns=2, max_width="800px",
             submit_callback=lambda: _registrar_proveedor(form, tabla_proveedores, _loading),
             submit_text="Guardar proveedor",
             enable_validation=True,
-            max_length=100,   # límite global para textos
+            max_length=100,
         )
         form.build()
-
-        # Campos del formulario con validaciones
-        form.nit = form.add_field(
-            "input", "NIT",
-            placeholder="900123456",
-            required=True,
-            max_length=15,
-            validation=solo_digitos_nit
-        )
-        form.nit.props('inputmode=numeric')   # teclado numérico en móviles
 
         form.nombre_empresa = form.add_field(
             "input", "Nombre empresa",
@@ -150,33 +218,29 @@ async def _registrar_proveedor(f: SmartForm, tabla_ref: SmartTable, _loading: Lo
         return
 
     datos = {
-        "nit":            f.nit.value.strip(),
         "nombre_empresa": f.nombre_empresa.value.strip(),
         "contacto":       (f.contacto.value or "").strip(),
         "telefono":       (f.telefono.value or "").strip(),
         "correo":         (f.correo.value or "").strip(),
     }
 
-    if any(p["nit"] == datos["nit"] for p in proveedores_mock):
-        ui.notify(f"Ya existe un proveedor con NIT {datos['nit']}", type="warning")
-        return
-
-    def hacer():
-        nuevo = registrar_proveedor_en_backend(datos)
-        ui.notify(
-            f"✅ Proveedor {nuevo['nombre_empresa']} registrado (NIT {nuevo['nit']})",
-            type="positive",
-        )
-        f.nit.value = ""
+    async def hacer():
+        if GAS_URL:
+            result = await asyncio.to_thread(registrar_proveedor_en_backend, datos)
+            nuevo_id = result.get("id", "")
+        else:
+            nuevo = registrar_proveedor_en_backend_local(datos)
+            nuevo_id = nuevo["nit"]
+        ui.notify(f"✅ Proveedor {datos['nombre_empresa']} registrado (NIT {nuevo_id})", type="positive")
         f.nombre_empresa.value = ""
         f.contacto.value = ""
         f.telefono.value = ""
         f.correo.value = ""
         f.clear_errors()
-        return nuevo
+        return nuevo_id
 
-    def refrescar():
-        tabla_ref.set_data(proveedores_mock)
+    async def refrescar():
+        await _recargar_proveedores_async(tabla_ref)
 
     await with_spinner(_loading, hacer, refresh=refrescar)
 
@@ -207,25 +271,21 @@ def _abrir_dialogo_edicion_proveedor(fila: dict, tabla_ref: SmartTable, _loading
 
                 datos_actualizados = {
                     "nombre_empresa": inp_nombre_empresa.value.strip(),
-                    "contacto":       (inp_contacto.value or "").strip(),
-                    "telefono":       (inp_telefono.value or "").strip(),
-                    "correo":         (inp_correo.value or "").strip(),
+                    "contacto":       str(inp_contacto.value or "").strip(),
+                    "telefono":       str(inp_telefono.value or "").strip(),
+                    "correo":         str(inp_correo.value or "").strip(),
                 }
 
-                def editar():
-                    ok = actualizar_proveedor_en_backend(fila["nit"], datos_actualizados)
-                    if ok:
-                        ui.notify(
-                            f"✅ Proveedor {datos_actualizados['nombre_empresa']} actualizado",
-                            type="positive",
-                        )
-                        dialogo.close()
+                async def editar():
+                    if GAS_URL:
+                        await asyncio.to_thread(actualizar_proveedor_en_backend, fila["nit"], datos_actualizados)
                     else:
-                        ui.notify("No se encontró el proveedor para actualizar", type="negative")
-                    return ok
+                        actualizar_proveedor_en_backend_local(fila["nit"], datos_actualizados)
+                    ui.notify(f"✅ Proveedor {datos_actualizados['nombre_empresa']} actualizado", type="positive")
+                    dialogo.close()
 
-                def refrescar():
-                    tabla_ref.set_data(proveedores_mock)
+                async def refrescar():
+                    await _recargar_proveedores_async(tabla_ref)
 
                 await with_spinner(_loading, editar, refresh=refrescar)
 
@@ -247,20 +307,16 @@ def _confirmar_eliminacion_proveedor(fila: dict, tabla_ref: SmartTable, _loading
             ui.button("Cancelar", on_click=dialogo.close).props("flat")
 
             async def confirmar():
-                def eliminar():
-                    ok = eliminar_proveedor_en_backend(fila["nit"])
-                    if ok:
-                        ui.notify(
-                            f"🗑️ Proveedor {fila['nombre_empresa']} eliminado",
-                            type="positive",
-                        )
-                        dialogo.close()
+                async def eliminar():
+                    if GAS_URL:
+                        await asyncio.to_thread(eliminar_proveedor_en_backend, fila["nit"])
                     else:
-                        ui.notify("No se encontró el proveedor para eliminar", type="negative")
-                    return ok
+                        eliminar_proveedor_en_backend_local(fila["nit"])
+                    ui.notify(f"🗑️ Proveedor {fila['nombre_empresa']} eliminado", type="positive")
+                    dialogo.close()
 
-                def refrescar():
-                    tabla_ref.set_data(proveedores_mock)
+                async def refrescar():
+                    await _recargar_proveedores_async(tabla_ref)
 
                 await with_spinner(_loading, eliminar, refresh=refrescar)
 

@@ -34,8 +34,8 @@ function setProveedores(data) {
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
     // Personaliza las transformaciones según el campo
-    if (field === 'nombre_empresa') value = value ? String(value).toUpperCase().trim() : '';
-    if (field === 'contacto') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre_empresa') value = value ? String(value).trim() : '';
+    if (field === 'contacto') value = value ? String(value).trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     if (field === 'correo') value = value ? String(value).toLowerCase().trim() : '';
     
@@ -83,8 +83,8 @@ function editProveedores(data) {
     
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
-    if (field === 'nombre_empresa') value = value ? String(value).toUpperCase().trim() : '';
-    if (field === 'contacto') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'nombre_empresa') value = value ? String(value).trim() : '';
+    if (field === 'contacto') value = value ? String(value).trim() : '';
     if (field === 'telefono') value = value ? String(value).trim() : '';
     if (field === 'correo') value = value ? String(value).toLowerCase().trim() : '';
     

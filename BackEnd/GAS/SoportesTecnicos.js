@@ -38,7 +38,7 @@ function setSoportesTecnicos(data) {
     
     // Personaliza las transformaciones según el campo
     if (field === 'problema') value = value ? String(value).trim() : '';
-    if (field === 'estado') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'estado') value = value ? String(value).trim() : '';
     if (field === 'id_cliente') value = value ? +value : '';
     if (field === 'id_robot') value = value ? +value : '';
     
@@ -87,7 +87,7 @@ function editSoportesTecnicos(data) {
     let value = typeof data[field] === 'boolean' ? +data[field] : data[field];
     
     if (field === 'problema') value = value ? String(value).trim() : '';
-    if (field === 'estado') value = value ? String(value).toUpperCase().trim() : '';
+    if (field === 'estado') value = value ? String(value).trim() : '';
     if (field === 'id_cliente') value = value ? +value : '';
     if (field === 'id_robot') value = value ? +value : '';
     
